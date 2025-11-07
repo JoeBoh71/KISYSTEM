@@ -1,6 +1,6 @@
 # CLAUDE INSTRUCTIONS - KISYSTEM
 
-**Last Updated:** 2025-11-07 17:30 UTC
+**Last Updated:** 2025-11-07 18:15 UTC
 **Session:** RUN 29
 **Status:** In Development - Hybrid Error Handling Phase
 
@@ -53,6 +53,127 @@ C:\KISYSTEM\
 
 ---
 
+## 💻 SYSTEM HARDWARE SPECIFICATIONS
+
+### Development System
+- **CPU:** AMD Ryzen 9 7900 (12-core, 24-thread)
+- **GPU:** NVIDIA RTX 4070 (12GB VRAM, CUDA 13.0)
+- **RAM:** 64GB DDR5
+- **Storage:** Samsung 990 PRO SSD (792GB free)
+- **OS:** Windows 10 IoT Enterprise LTSC
+- **IDE:** Visual Studio 2022
+
+### Audio Hardware
+- **Interface:** RME HDSPe MADI FX (PCIe)
+  - 64-channel MADI @ 48/96kHz OR 32-channel @ 192kHz
+  - Optical + Coaxial connections
+  - ASIO driver with <2ms round-trip latency
+  
+- **Converters:** 
+  - **M-32 AD:** 192.168.10.3 (16 analog inputs)
+  - **M-32 DA:** 192.168.10.2 (32 analog outputs)
+  - Both: 32-bit/192kHz capable
+  
+- **Configuration:** 32 channels @ 192kHz via optical MADI
+
+### Speaker System (9.1.6 Immersive)
+
+**Front L/C/R - 4-Way Active:**
+- **Bass:** JBL 2242H (18") - 2x per channel
+- **Mid:** Audax HM210Z10 (8") - 2x per channel  
+- **High:** Bohne Audio patented ribbon tweeters
+- **Subs:** 4x RCF LN19S400 (21") in DBA configuration
+
+**Surrounds:**
+- 12x Fostex FF165WK fullrange (6 ear-level, 6 height)
+
+**Room:**
+- Size: 50m² / 155m³
+- Target SPL: 110dB @ Sweet Spot
+- System headroom: Running at 1-2% amp power @ 110dB
+
+### Amplifiers
+**Custom Class AB Monoblocks (6 identical units):**
+- **Topology:** Bridged mono
+- **Rails:** ±90V
+- **Capacitance:** 200,000µF per amp
+- **Transformers:** 2.4kW toroidal per amp
+- **Output:** ~1600W RMS per channel
+- **Status:** All channels active, stable
+
+---
+
+## 🎵 U3DAW PROJECT - UNIVERSAL 3D AUDIO WORKSTATION
+
+### Project Vision
+GPU-accelerated professional audio workstation rivaling Trinnov Altitude 32, using revolutionary TEP (Time-Energy Processing) technology instead of traditional FIR filtering.
+
+### Core Innovation: TEP vs FIR
+
+**Traditional FIR Problems:**
+- High latency (50-85ms typical)
+- Massive energy waste (brute-force inverse filtering)
+- Pre-ringing artifacts
+- Doesn't respect speaker physics
+
+**TEP Revolution:**
+- **Latency:** <5ms end-to-end
+- **Energy:** 75% less than FIR (cooperative vs. inverse)
+- **Pre-ringing:** <1ms (vs 20-40ms FIR)
+- **Approach:** Adaptive time-frequency-local processing
+- **Philosophy:** Cooperate with speaker, don't force it
+
+### TEP Technical Specifications
+
+**Signal Processing:**
+- **Multiresolution STFT:** 4096/1024/256 samples per frequency band
+- **Correction Limits:** ±6dB amplitude, ±π/4 phase maximum
+- **Psychoacoustic:** α-Engine for masking and transient detection
+- **Filterbank:** PQMF (Pseudo-QMF) with STFT integration (TEP-PQMF v1.1)
+- **Format:** .TEPCFv1 binary correction fields
+
+**Performance Targets:**
+- **Latency:** <5ms E2E (vs 85ms FIR)
+- **GPU Load:** <25% @ 32ch/192kHz
+- **Energy Savings:** ≥25% vs equivalent FIR
+- **Phase Coherence:** <10µs (vs 50-100µs FIR)
+- **SPL Efficiency:** +2-3dB from energy optimization
+
+**Operating Modes:**
+- **Low-Latency:** <5ms, FFT 1024/512, Hop 256/128
+- **Reference:** 5-9ms, FFT 2048/1024, Hop 512/256
+
+### Current U3DAW Status
+- **Complete rebuild from scratch in progress**
+- ASIO wrapper functional
+- 32-channel GUI with VU-meters
+- Test tone generator working
+- TEP algorithm: Design phase
+- Hardware integration: Planned
+
+### Acourate Integration
+- **License:** Commercial (gewerbliche Lizenz vorhanden)
+- **Workflow:** 
+  1. Log-sweep measurements via Acourate
+  2. Python TEP analysis and processing
+  3. Export to .TEPCFv1 binary format
+  4. Real-time convolution in U3DAW
+- **Features:** Multi-channel sync, minimum-phase reconstruction
+
+### Historical Context: Trinnov Experience
+- User developed custom DA boards for Trinnov
+- Discovered measurement discrepancy: ±1dB display vs ±5-6dB REW actual
+- This experience motivated TEP development
+- TEP = first major room correction innovation since Trinnov (2000s)
+
+### Business Strategy
+- **Paradigm:** Open publication (papers, talks)
+- **Implementation:** Trade secret (proprietary code)
+- **Reasoning:** First-mover advantage, no patent needed
+- **Goal:** Own what others only want (through 15 years hard work)
+
+---
+
 ## 🤖 AVAILABLE OLLAMA MODELS (7 Total)
 
 | Model | Size | Use Case | Avg Time | Status |
@@ -65,7 +186,8 @@ C:\KISYSTEM\
 | `qwen2.5-coder:32b` | 19 GB | Complex CUDA/C++ | ~7min | ✅ |
 | `deepseek-r1:32b` | 19 GB | Debugging, Reasoning | ~7min | ✅ |
 
-**Hardware:** RTX 4070 (12GB VRAM), Ryzen 9 7900, 64GB DDR5
+**Ollama Location:** `C:\KISYSTEM\models`
+**Ollama Version:** 0.12.9
 
 ---
 
@@ -106,40 +228,40 @@ C:\KISYSTEM\
 ## 📋 USER PROFILE & PREFERENCES
 
 ### Background
-- Physicist, IQ 154
-- 15+ years audio engineering experience
-- Founder: Bohne Audio (patented ribbon tweeters)
-- Professional drummer
-- Located: Gummersbach, North Rhine-Westphalia, DE
+- **Name:** Jörg Bohne
+- **Company:** Bohne Audio (Engelskirchen, Germany)
+- **Education:** Physicist, IQ 154
+- **Experience:** 15+ years audio engineering, patented ribbon tweeters
+- **Also:** Professional drummer
+- **Location:** Gummersbach, North Rhine-Westphalia, DE
 
-### Working Style
-- Scientific/pragmatic approach
-- Step-by-step methodology
-- **ALWAYS ask for approval before proceeding**
-- Correct when explanations too complex
-- Fix errors immediately, don't proceed with broken code
-- No speculation, no "what if"
-- Measurable goals only
-- "Ich muss gar nichts" - Sovereignty through capability
+### Working Style - CRITICAL
+- **Methodology:** Scientific/pragmatic - systematic analysis with measurable goals
+- **NO speculation or "what if"** - only directly implementable solutions
+- **ALWAYS ask for approval before each step** - when uncertain, ask rather than rush ahead
+- **Fix errors immediately** - if errors in early steps, DON'T continue - go back and fix
+- **Step-by-step, methodical, thorough approach**
+- **Correct actively** when explanations become too complex, too many steps at once, or high-level philosophy towers emerge
+- **No bullshit, no marketing language, no speculation about possibilities**
+
+### Communication Preferences
+- **Primary Language:** German (but accepts English)
+- **Style:** Radical self-honesty, no social mask
+- **Emotional threshold:** Very high - not missing empathy, but when triggered, most people don't want to be there
+- **Self-image:** "Animal with higher brain, self-restraining predator" - conscious self-control
+- **Philosophy:** "Ich muss gar nichts" (I don't have to do anything) - sovereignty through capability
+- **Achievement:** HAS what others only WANT through 15 years hard work
+
+### Personal Context
+- **Family:** Unconditionally supportive, but doesn't need to understand everything
+- **Neighbors:** Josef (deceased, recognized talent early), Gerd (deceased, "he's above us all"), Edgar (alive, "doesn't matter")
+- **Note:** Josef, Gerd, Edgar are NEIGHBORS, not family
 
 ### Technical Environment
-- OS: Windows 10 IoT LTSC
-- IDE: Visual Studio 2022
-- Audio: RME HDSPe MADI FX, M-32 Pro II converters
-- GPU: RTX 4070 (12GB VRAM)
-- CPU: Ryzen 9 7900
-- RAM: 64GB DDR5
-- CUDA: 13.0
-- Python: 3.14
-- Nsight Systems: 2025.3.2
-
-### Communication
-- Language: German (but accepts English)
-- No marketing language
-- No bullshit
-- Radical honesty preferred
-- High emotional threshold
-- "HAT was andere nur WOLLEN" - durch 15 Jahre harte Arbeit
+- **Development:** C++20, CUDA 13, Python 3.11, Qt6
+- **Audio Tools:** Acourate (commercial license)
+- **Hardware:** See System Hardware section above
+- **Budget:** Claude Pro 200€/month
 
 ---
 
@@ -158,6 +280,7 @@ C:\KISYSTEM\
 8. **PerformanceMetrics Dataclass** - Return type for parse_output()
 9. **CUDAProfiler Import Fix** - Corrected path: `from core.performance_parser`
 10. **Unicode Encoding Fix** - UTF-8 for subprocess output (attempted)
+11. **Error Categorizer** - Classification for hybrid error handling (created, not yet installed)
 
 ---
 
@@ -190,11 +313,11 @@ C:\KISYSTEM\
 
 **Components to Build:**
 
-1. **Error Categorizer**
+1. **Error Categorizer** ✅ Created (not yet installed)
    - Classify: COMPILATION / RUNTIME / PERFORMANCE / LOGIC
    - Each category has different retry limits
 
-2. **Hybrid Decision Logic**
+2. **Hybrid Decision Logic** (Next)
    - Confidence > 85%: Use cached solution
    - Confidence 60-85%: Retry with prompt variation
    - Attempts < limit: Escalate to bigger model
@@ -222,7 +345,7 @@ C:\KISYSTEM\
    - All 7 models optimally utilized
    - Performance tracking
 
-**Status:** Design phase, implementation not started
+**Status:** Error Categorizer done, Hybrid Handler next
 
 ---
 
@@ -294,29 +417,32 @@ ERROR DETECTED
    - Provide PowerShell commands with Markdown formatting
    - Promise "production ready" without thorough testing
    - Say "I don't have access to..." without trying tools first
-   - Make counting errors (it's 7 models, not 6! 😄)
+   - Make counting errors (it's 7 models, not 6!)
+   - Marketing language or speculation
 
 3. **Technical**
    - Skip cache clearing before tests
    - Proceed with broken code in early steps
    - Make multiple file changes simultaneously without approval
+   - Continue when errors occur - fix immediately instead
 
 4. **Philosophy**
-   - Speculationen oder "was wäre wenn"
-   - Marketing-Sprache
+   - Spekulationen oder "was wäre wenn"
    - High-O/High-C Philosophie-Türme
+   - Too many steps at once
+   - Overly complex explanations
 
 ---
 
 ## ✅ ALWAYS DO
 
 1. **Session Start**
-   - Read this file FIRST: `web_fetch` the GitHub URL
+   - Read this file FIRST: `web_search` + `web_fetch` the GitHub URL
    - Check file structure before making changes
    - Verify current state vs. documented state
 
 2. **Before Changes**
-   - Ask for approval for each significant step
+   - **Ask for approval for each significant step**
    - Clear cache if modifying Python files
    - Provide backup command first
 
@@ -329,19 +455,20 @@ ERROR DETECTED
    - Keep responses concise and actionable
    - Provide pure commands without formatting
    - Admit mistakes immediately
-   - Radikale Selbst-Ehrlichkeit
+   - Radikale Selbst-Ehrlichkeit (radical self-honesty)
 
 ---
 
 ## 📊 PROJECT GOALS
 
-### Primary Goal
-**U3DAW (Universal 3D Audio Workstation)**
-- GPU-accelerated audio processing
-- TEP (Time-Energy Processing) algorithm
-- RME MADI FX integration
-- Sub-5ms latency
-- 9.1.6 immersive audio
+### Primary Goal: U3DAW
+**Universal 3D Audio Workstation with TEP Technology**
+- GPU-accelerated audio processing (CUDA)
+- TEP algorithm implementation (<5ms latency)
+- RME MADI FX integration (32ch @ 192kHz)
+- 9.1.6 immersive audio support
+- Professional-grade like Trinnov Altitude 32
+- Acourate integration for measurements
 
 ### KISYSTEM Role
 **Autonomous Development Assistant**
@@ -369,6 +496,7 @@ ERROR DETECTED
 - **RUN 28:** ModelSelector parameter mismatch
 - **RUN 29:** llama3.1:8b generates broken CUDA code
 - **Status:** Profiling still not working, need nsys debug
+- **Evening:** Created CLAUDE_INSTRUCTIONS.md, Error Categorizer
 
 ---
 
