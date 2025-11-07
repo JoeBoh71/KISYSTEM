@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "system": {
+    "name": "KISYSTEM",
+    "mode": "secure",
+    "workspace": "C:\\KISYSTEM\\workspace",
+    "memory_path": "D:\\AGENT_MEMORY"
+  },
+  "supervisor": {
+    "model": "qwen2.5-coder:32b",
+    "temperature": 0.3,
+    "max_tokens": 4096,
+    "decision_threshold": 0.8,
+    "batch_mode": true,
+    "security_level": "high"
+  },
+  "agents": [
+    {
+      "id": "builder",
+      "name": "Builder Agent",
+      "model": "qwen2.5-coder:32b",
+      "temperature": 0.2,
+      "trust_level": "high",
+      "capabilities": ["create_code", "modify_code", "file_access"],
+      "workspace_access": true
+    },
+    {
+      "id": "tester",
+      "name": "Tester Agent",
+      "model": "phi4:mini",
+      "temperature": 0.1,
+      "trust_level": "high",
+      "capabilities": ["run_tests", "analyze_performance"],
+      "workspace_access": "readonly"
+    },
+    {
+      "id": "fixer",
+      "name": "Fixer Agent",
+      "model": "qwen2.5-coder:32b",
+      "temperature": 0.3,
+      "trust_level": "high",
+      "capabilities": ["debug_code", "fix_errors", "optimize"],
+      "workspace_access": true
+    },
+    {
+      "id": "searcher",
+      "name": "Search Agent",
+      "model": "phi4:latest",
+      "temperature": 0.5,
+      "trust_level": "restricted",
+      "capabilities": ["web_search"],
+      "workspace_access": false,
+      "sandboxed": true
+    }
+  ],
+  "security": {
+    "enable_audit": true,
+    "enable_filtering": true,
+    "max_requests_per_minute": 10
+  }
+}
