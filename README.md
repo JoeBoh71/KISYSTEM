@@ -9,7 +9,9 @@
 
 ## 🤖 For Claude
 
-**⚡ START HERE:** [CLAUDE_INSTRUCTIONS.md](./CLAUDE_INSTRUCTIONS.md) - Complete project context, rules, and current state for all sessions.
+**⚡ READ FIRST:** https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/CLAUDE_INSTRUCTIONS.md
+
+Complete project context, rules, and current state for all sessions.
 
 ---
 
@@ -198,11 +200,9 @@ git push origin v1.0
 **Nächste Session:**
 
 ```
-User: "KISYSTEM Error XYZ, Repo: github.com/JoeBoh71/KISYSTEM"
-Claude: [searches past chats] + [understands code structure]
-Claude: "Show me the error"
-User: [posts error]
-Claude: [fixes, you commit]
+User: "KISYSTEM" or "kis"
+Claude: [fetches README → sees URL → fetches CLAUDE_INSTRUCTIONS.md]
+Claude: [has complete context]
 ```
 
 = Kein File-Upload mehr nötig
