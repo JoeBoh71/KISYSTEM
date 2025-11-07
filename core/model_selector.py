@@ -1,322 +1,160 @@
 """
-KISYSTEM Model Selector - Phase 5 Complete
-Smart model routing based on task complexity
-
-Author: Jörg Bohne
-Date: 2025-11-06
-Version: 2.0 (with Workflow Engine integration)
+Smart Model Selector for KISYSTEM
+Routes tasks to appropriate models based on actual complexity
 """
 
-from typing import Dict, Optional, Literal
+from typing import Dict, Optional
 from dataclasses import dataclass
 
 
 @dataclass
 class ModelConfig:
-    """Configuration for a specific model"""
+    """Model configuration"""
     name: str
-    size_gb: float
-    estimated_time: str
-    use_cases: list[str]
-    vram_required: int  # in GB
+    timeout: int
+    description: str
 
-
-# ============================================================================
-# MODEL STRATEGY - Based on available Ollama models
-# ============================================================================
-
-MODEL_STRATEGY = {
-    "simple": ModelConfig(
-        name="llama3.1:8b",
-        size_gb=4.9,
-        estimated_time="~30s",
-        use_cases=["functions", "simple_scripts", "quick_fixes", "utility_code"],
-        vram_required=5
-    ),
-    
-    "medium": ModelConfig(
-        name="deepseek-coder-v2:16b",
-        size_gb=8.9,
-        estimated_time="~1min",
-        use_cases=["classes", "algorithms", "data_structures", "standard_debug"],
-        vram_required=9
-    ),
-    
-    "complex": ModelConfig(
-        name="qwen2.5-coder:32b",
-        size_gb=19.0,
-        estimated_time="~2min",
-        use_cases=["cuda", "gpu_code", "frameworks", "architecture", "optimization"],
-        vram_required=12  # With quantization
-    ),
-    
-    "deep_debug": ModelConfig(
-        name="deepseek-r1:32b",
-        size_gb=19.0,
-        estimated_time="~2min",
-        use_cases=["root_cause_analysis", "complex_bugs", "reasoning", "investigation"],
-        vram_required=12
-    ),
-    
-    "search": ModelConfig(
-        name="phi4:latest",
-        size_gb=9.1,
-        estimated_time="~20s",
-        use_cases=["web_search", "documentation", "research", "quick_answers"],
-        vram_required=9
-    )
-}
-
-
-# ============================================================================
-# COMPLEXITY DETECTION
-# ============================================================================
-
-class ComplexityDetector:
-    """Detects task complexity from description and context"""
-    
-    # Keyword sets for different complexity levels
-    COMPLEX_KEYWORDS = {
-        'cuda', 'gpu', 'kernel', '__global__', '__device__',
-        'framework', 'architecture', 'system_design',
-        'multi-threaded', 'async', 'parallel', 'concurrent',
-        'optimization', 'performance-critical', 'real-time',
-        'asio', 'madi', 'audio_processing', 'dsp'
-    }
-    
-    MEDIUM_KEYWORDS = {
-        'class', 'algorithm', 'data structure',
-        'sort', 'sorting', 'search', 'searching', 'tree', 'graph',
-        'implement', 'build', 'create',
-        'refactor', 'optimize', 'improve',
-        'interface', 'api', 'module',
-        'test suite', 'integration', 'component'
-    }
-    
-    DEBUG_KEYWORDS = {
-        'root cause', 'why', 'investigate',
-        'mysterious', 'intermittent', 'random',
-        'sometimes', 'occasionally', 'strange',
-        'undefined behavior', 'memory leak', 'segfault'
-    }
-    
-    SIMPLE_INDICATORS = {
-        'function', 'helper', 'utility',
-        'print', 'log', 'format',
-        'simple', 'quick', 'small'
-    }
-    
-    @staticmethod
-    def detect(task: str, context: Optional[Dict] = None) -> str:
-        """
-        Detect complexity level from task description
-        
-        Args:
-            task: Task description string
-            context: Optional context dict with additional info
-            
-        Returns:
-            Complexity level: "simple", "medium", "complex", or "deep_debug"
-        """
-        
-        task_lower = task.lower()
-        
-        # Check context for override
-        if context and "complexity" in context:
-            return context["complexity"]
-        
-        # Deep debug detection (highest priority)
-        if any(kw in task_lower for kw in ComplexityDetector.DEBUG_KEYWORDS):
-            return "deep_debug"
-        
-        # Complex task detection
-        if any(kw in task_lower for kw in ComplexityDetector.COMPLEX_KEYWORDS):
-            return "complex"
-        
-        # Medium task detection
-        if any(kw in task_lower for kw in ComplexityDetector.MEDIUM_KEYWORDS):
-            return "medium"
-        
-        # Explicit simple indicators
-        if any(kw in task_lower for kw in ComplexityDetector.SIMPLE_INDICATORS):
-            return "simple"
-        
-        # Code size heuristic (if context provided)
-        if context:
-            lines = context.get("lines_of_code", 0)
-            if lines > 200:
-                return "complex"
-            elif lines > 50:
-                return "medium"
-        
-        # Default: simple for safety (fast turnaround)
-        return "simple"
-
-
-# ============================================================================
-# MODEL SELECTOR
-# ============================================================================
 
 class ModelSelector:
-    """
-    Intelligent model selection based on task complexity
+    """Intelligent model selection based on task complexity"""
     
-    Features:
-    - Automatic complexity detection
-    - Configurable model strategy
-    - Fallback handling
-    - Performance tracking
-    """
+    # Model configurations
+    MODELS = {
+        'llama3.1:8b': {'timeout': 180, 'description': 'Fast, simple tasks'},
+        'deepseek-coder-v2:16b': {'timeout': 300, 'description': 'Medium complexity'},
+        'qwen2.5-coder:32b': {'timeout': 1800, 'description': 'Complex, large projects'},
+        'deepseek-r1:32b': {'timeout': 1800, 'description': 'Deep debugging'}
+    }
     
-    def __init__(self, strategy: Optional[Dict] = None):
-        """
-        Initialize selector with model strategy
-        
-        Args:
-            strategy: Optional custom model strategy dict
-        """
-        self.strategy = strategy or MODEL_STRATEGY
-        self.detector = ComplexityDetector()
-        
-        # Performance tracking
-        self.stats = {
-            "simple": {"count": 0, "avg_time": 0},
-            "medium": {"count": 0, "avg_time": 0},
-            "complex": {"count": 0, "avg_time": 0},
-            "deep_debug": {"count": 0, "avg_time": 0}
-        }
+    # CUDA complexity keywords
+    CUDA_SIMPLE = [
+        'vector add', 'vector addition', 'element-wise', 'elementwise',
+        'scalar', 'simple', 'basic', 'multiply', 'divide',
+        'copy', 'fill', 'saxpy', 'daxpy'
+    ]
     
-    def select_model(
-        self, 
-        task: str, 
-        agent_type: str = "builder",
-        context: Optional[Dict] = None,
-        force_complexity: Optional[str] = None
-    ) -> ModelConfig:
+    CUDA_MEDIUM = [
+        'shared memory', 'matrix multiply', 'matrix multiplication',
+        'transpose', 'convolution', 'dot product', 'reduction',
+        'prefix sum', 'scan', 'histogram', 'sorting'
+    ]
+    
+    CUDA_COMPLEX = [
+        'fft', 'fast fourier', 'multi-kernel', 'multi-pass',
+        'dynamic parallelism', 'graph', 'cooperative groups',
+        'tensor core', 'sparse', 'optimization pipeline',
+        'multi-gpu', 'streams', 'async'
+    ]
+    
+    def __init__(self):
+        pass
+    
+    def select_model(self, task: str, language: str = None, 
+                    agent_type: str = None, context: str = None) -> ModelConfig:
         """
-        Select appropriate model for task
+        Select appropriate model based on task complexity
         
         Args:
             task: Task description
-            agent_type: Type of agent (builder/tester/fixer)
-            context: Optional additional context
-            force_complexity: Override complexity detection
+            language: Programming language (cuda, python, cpp, etc)
+            agent_type: Type of agent requesting (builder, fixer, etc)
+            context: Additional context
             
         Returns:
-            ModelConfig for selected model
+            ModelConfig with name, timeout, description
         """
+        complexity = self._detect_complexity(task, language)
         
-        # Determine complexity
-        if force_complexity:
-            complexity = force_complexity
-        else:
-            complexity = self.detector.detect(task, context)
+        if complexity == "SIMPLE":
+            model = 'llama3.1:8b'
+        elif complexity == "MEDIUM":
+            model = 'deepseek-coder-v2:16b'
+        else:  # COMPLEX
+            model = 'qwen2.5-coder:32b'
         
-        # Special handling for fixer with repeated failures
-        if agent_type == "fixer":
-            failure_count = context.get("failure_count", 0) if context else 0
-            
-            if failure_count >= 3:
-                # Escalate to deep debug after 3 failures
-                complexity = "deep_debug"
-                print(f"[ModelSelector] ⚠️ {failure_count} failures detected - escalating to deep_debug")
+        model_info = self.MODELS[model]
         
-        # Get model config
-        model_config = self.strategy[complexity]
+        # Log selection
+        print(f"[ModelSelector] 🎯 Task complexity: {complexity}")
+        print(f"[ModelSelector] 🤖 Selected model: {model}")
+        print(f"[ModelSelector] ⏱️ Estimated time: ~{model_info['timeout']//60}min")
         
-        # Update stats
-        self.stats[complexity]["count"] += 1
-        
-        print(f"[ModelSelector] 🎯 Task complexity: {complexity.upper()}")
-        print(f"[ModelSelector] 🤖 Selected model: {model_config.name}")
-        print(f"[ModelSelector] ⏱️ Estimated time: {model_config.estimated_time}")
-        
-        return model_config
+        return ModelConfig(
+            name=model,
+            timeout=model_info['timeout'],
+            description=model_info['description']
+        )
     
-    def get_stats(self) -> Dict:
-        """Get performance statistics"""
-        return self.stats
+    def _detect_complexity(self, task: str, language: str = None) -> str:
+        """Detect task complexity"""
+        task_lower = task.lower()
+        
+        # Special handling for CUDA
+        if language and language.upper() == "CUDA":
+            return self._detect_cuda_complexity(task_lower)
+        
+        # General complexity detection
+        if any(kw in task_lower for kw in ['simple', 'basic', 'hello', 'example']):
+            return "SIMPLE"
+        
+        if any(kw in task_lower for kw in [
+            'optimize', 'performance', 'algorithm', 'data structure',
+            'class', 'interface', 'architecture'
+        ]):
+            return "COMPLEX"
+        
+        # Default to medium
+        return "MEDIUM"
     
-    def suggest_upgrade(self, current: str, reason: str = "task_failed") -> str:
+    def _detect_cuda_complexity(self, task_lower: str) -> str:
+        """Detect CUDA-specific complexity"""
+        
+        # Check for complex patterns first
+        complex_score = sum(1 for kw in self.CUDA_COMPLEX if kw in task_lower)
+        if complex_score > 0:
+            return "COMPLEX"
+        
+        # Check for medium patterns
+        medium_score = sum(1 for kw in self.CUDA_MEDIUM if kw in task_lower)
+        if medium_score > 0:
+            return "MEDIUM"
+        
+        # Check for simple patterns
+        simple_score = sum(1 for kw in self.CUDA_SIMPLE if kw in task_lower)
+        if simple_score > 0:
+            return "SIMPLE"
+        
+        # Default: If no specific keywords, assume medium for CUDA
+        return "MEDIUM"
+    
+    def get_escalation_model(self, current_model: str) -> Optional[ModelConfig]:
         """
-        Suggest model upgrade on failure
+        Get next model in escalation chain
         
         Args:
-            current: Current complexity level
-            reason: Reason for upgrade
+            current_model: Current model that failed
             
         Returns:
-            Suggested upgraded complexity level
+            ModelConfig for next model or None if no escalation
         """
+        escalation_chain = [
+            'llama3.1:8b',
+            'deepseek-coder-v2:16b',
+            'qwen2.5-coder:32b',
+            'deepseek-r1:32b'
+        ]
         
-        upgrade_path = {
-            "simple": "medium",
-            "medium": "complex",
-            "complex": "deep_debug",
-            "deep_debug": "deep_debug"  # Already at max
-        }
+        try:
+            current_idx = escalation_chain.index(current_model)
+            if current_idx < len(escalation_chain) - 1:
+                next_model = escalation_chain[current_idx + 1]
+                model_info = self.MODELS[next_model]
+                return ModelConfig(
+                    name=next_model,
+                    timeout=model_info['timeout'],
+                    description=model_info['description']
+                )
+        except (ValueError, IndexError):
+            pass
         
-        upgraded = upgrade_path.get(current, "medium")
-        
-        print(f"[ModelSelector] 📈 Upgrading: {current} → {upgraded} (reason: {reason})")
-        
-        return upgraded
-
-
-# ============================================================================
-# CONVENIENCE FUNCTIONS
-# ============================================================================
-
-def get_model_for_task(task: str, agent_type: str = "builder") -> str:
-    """
-    Quick helper to get model name for a task
-    
-    Args:
-        task: Task description
-        agent_type: Agent type
-        
-    Returns:
-        Model name string
-    """
-    selector = ModelSelector()
-    config = selector.select_model(task, agent_type)
-    return config.name
-
-
-def get_all_models() -> Dict[str, ModelConfig]:
-    """Get all available models in strategy"""
-    return MODEL_STRATEGY
-
-
-# ============================================================================
-# TESTING
-# ============================================================================
-
-if __name__ == "__main__":
-    print("="*70)
-    print("MODEL SELECTOR - Phase 5 Complete")
-    print("="*70)
-    
-    selector = ModelSelector()
-    
-    # Test cases
-    test_tasks = [
-        ("Write a hello world function", "builder"),
-        ("Implement bubble sort algorithm", "builder"),
-        ("Create CUDA kernel for matrix multiplication", "builder"),
-        ("Debug mysterious segfault in audio processing", "fixer"),
-        ("Why does this code work sometimes but not always?", "fixer"),
-    ]
-    
-    print("\nTest Cases:\n")
-    
-    for task, agent in test_tasks:
-        print(f"\nTask: '{task}'")
-        print(f"Agent: {agent}")
-        config = selector.select_model(task, agent)
-        print(f"→ Model: {config.name} ({config.size_gb}GB, {config.estimated_time})")
-        print("-" * 70)
-    
-    print("\n" + "="*70)
-    print("Stats:", selector.get_stats())
-    print("="*70)
+        return None

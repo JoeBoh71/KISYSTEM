@@ -2,8 +2,11 @@
 KISYSTEM Supervisor V3 - Optimization Loop Extension
 Hardware-in-the-Loop Performance Optimization
 
+UPDATED: 2025-11-07 - Now using FixerAgentV3 with Hybrid Error Handler
+
 Author: Jörg Bohne
-Date: 2025-11-06
+Date: 2025-11-07
+Version: 3.1
 """
 
 import asyncio
@@ -21,10 +24,16 @@ class SupervisorV3WithOptimization(SupervisorV3):
     """
     Extended Supervisor with Hardware-in-the-Loop Optimization
     
+    NEW in V3.1:
+    - Uses FixerAgentV3 with Hybrid Error Handler
+    - Intelligent error categorization
+    - Confidence-based retry decisions
+    - Category-specific retry limits
+    
     Flow:
     1. Build → Generate Code
     2. Profile → Run on Hardware + Measure Performance
-    3. Optimize → Fix Performance Issues
+    3. Optimize → Fix Performance Issues (with Hybrid Handler)
     4. Repeat (max iterations)
     """
     
@@ -33,7 +42,7 @@ class SupervisorV3WithOptimization(SupervisorV3):
         Initialize with optimization loop
         
         Args:
-            max_optimization_iterations: Max optimize iterations (default: 3)
+            max_optimization_iterations: Max optimize iterations (default: 10)
         """
         # Extract verbose if present (don't pass to parent)
         self.verbose = kwargs.pop('verbose', True)  # Default True for optimization mode
@@ -63,16 +72,42 @@ class SupervisorV3WithOptimization(SupervisorV3):
             if self.verbose:
                 print("[Supervisor V3+] ⚠️  Search Agent not available")
 
-        # Initialize persistent FixerAgent
+        # Initialize persistent FixerAgentV3 (NEW!)
         sys.path.insert(0, str(Path(__file__).parent.parent / "agents"))
-        from fixer_agent import FixerAgent
-        self.fixer_agent = FixerAgent(
-            learning_module=self.learning,
-            search_agent=self.search_agent
-        )
-        self.fixer_failure_count = 0
-        if self.verbose:
-            print("[Supervisor V3+] ✓ Persistent FixerAgent initialized")
+        try:
+            from fixer_agent_v3 import FixerAgentV3
+            
+            # Try to import confidence scorer
+            try:
+                sys.path.insert(0, str(Path(__file__).parent.parent / 'core'))
+                from confidence_scorer import ConfidenceScorer
+                confidence_scorer = ConfidenceScorer()
+            except ImportError:
+                confidence_scorer = None
+                if self.verbose:
+                    print("[Supervisor V3+] ⚠️  ConfidenceScorer not available")
+            
+            self.fixer_agent = FixerAgentV3(
+                learning_module=self.learning,
+                search_agent=self.search_agent,
+                confidence_scorer=confidence_scorer
+            )
+            self.fixer_failure_count = 0
+            if self.verbose:
+                print("[Supervisor V3+] ✓ Persistent FixerAgentV3 initialized (Hybrid Handler)")
+                
+        except ImportError as e:
+            if self.verbose:
+                print(f"[Supervisor V3+] ⚠️  FixerAgentV3 not available, falling back to V2: {e}")
+            # Fallback to V2
+            from fixer_agent import FixerAgent
+            self.fixer_agent = FixerAgent(
+                learning_module=self.learning,
+                search_agent=self.search_agent
+            )
+            self.fixer_failure_count = 0
+            if self.verbose:
+                print("[Supervisor V3+] ✓ Persistent FixerAgent (V2) initialized")
     
     def _print(self, msg: str):
         """Print if verbose enabled"""
@@ -116,7 +151,8 @@ class SupervisorV3WithOptimization(SupervisorV3):
             "final_performance": None,
             "optimization_history": [],
             "iterations": 0,
-            "errors": []
+            "errors": [],
+            "hybrid_handler_stats": None
         }
         
         try:
@@ -164,52 +200,61 @@ class SupervisorV3WithOptimization(SupervisorV3):
                         self._print(f"[Supervisor V3+] ⚠️  Compilation failed")
                         result['errors'].append(f"Iteration {iteration}: Compile error")
                         
-                        # Log error to learning module
+                        # Log error to learning module (note: store_solution is NOT async)
                         if self.learning:
-                            await self.learning.store_failure(
-                                task=f"cuda_compilation_{language}",
-                                error_type="compile_error",
-                                error_message=profile_result['compile_output'][:200],
-                                context={
-                                    'iteration': iteration,
-                                    'language': language,
-                                    'code_length': len(current_code),
-                                    'first_error_line': self._extract_error_line(profile_result['compile_output'])
-                                },
-                                metadata={'phase': 'optimization_loop'}
+                            self.learning.store_solution(
+                                error=f"cuda_compilation_{language}",
+                                solution="",
+                                code=current_code,
+                                model_used="profiler",
+                                success=False
                             )
                         
-                        # Try to fix compile error
+                        # Try to fix compile error with FixerAgentV3 (uses Hybrid Handler!)
                         if iteration < self.max_optimization_iterations:
-                            self._print(f"[Supervisor V3+] Attempting to fix compile error...")
-                            # Use regular fix() for compile errors
-                            fixer = self.fixer_agent
-                            fix_result = await fixer.fix(
+                            self._print(f"[Supervisor V3+] Attempting to fix compile error with Hybrid Handler...")
+                            
+                            fix_result = await self.fixer_agent.fix(
                                 code=current_code,
                                 error=profile_result['compile_output'],
-                                language=language
+                                language=language,
+                                context={'attempt': iteration - 1}
                             )
+                            
                             if fix_result['status'] == 'completed':
                                 current_code = fix_result['fixed_code']
+                                self._print(f"[Supervisor V3+] ✓ Compile error fixed")
+                                
+                                # Log the fix decision
+                                if fix_result.get('decision_info'):
+                                    decision = fix_result['decision_info']
+                                    self._print(f"[Supervisor V3+] Decision: {decision['action']}")
+                                    self._print(f"[Supervisor V3+] Category: {decision['category']}")
+                                    self._print(f"[Supervisor V3+] Model: {decision['model']}")
+                                
+                                result['optimization_history'].append({
+                                    'iteration': iteration,
+                                    'phase': 'compile_fix',
+                                    'code': current_code,
+                                    'decision_info': fix_result.get('decision_info')
+                                })
                                 continue
+                            else:
+                                self._print(f"[Supervisor V3+] ✗ Could not fix compile error")
                         break
                     
                     if profile_result['status'] == 'runtime_error':
                         self._print(f"[Supervisor V3+] ⚠️  Runtime error")
                         result['errors'].append(f"Iteration {iteration}: Runtime error")
                         
-                        # Log error to learning module
+                        # Log error to learning module (note: store_solution is NOT async)
                         if self.learning:
-                            await self.learning.store_failure(
-                                task=f"cuda_runtime_{language}",
-                                error_type="runtime_error",
-                                error_message=profile_result['runtime_output'][:200],
-                                context={
-                                    'iteration': iteration,
-                                    'language': language,
-                                    'code_length': len(current_code)
-                                },
-                                metadata={'phase': 'optimization_loop'}
+                            self.learning.store_solution(
+                                error=f"cuda_runtime_{language}",
+                                solution="",
+                                code=current_code,
+                                model_used="profiler",
+                                success=False
                             )
                         
                         break
@@ -244,9 +289,7 @@ class SupervisorV3WithOptimization(SupervisorV3):
                             self._print(f"\n[Supervisor V3+] Step 2.{iteration}b: Optimizing...")
                             self._print(f"[Supervisor V3+] Addressing {len(suggestions)} issues")
                             
-                            fixer = self.fixer_agent
-                            
-                            optimize_result = await fixer.fix_performance(
+                            optimize_result = await self.fixer_agent.fix_performance(
                                 code=current_code,
                                 performance_suggestions=suggestions,
                                 language=language,
@@ -286,6 +329,10 @@ class SupervisorV3WithOptimization(SupervisorV3):
             result['final_code'] = current_code
             result['status'] = 'completed'
             
+            # Get Hybrid Handler statistics if using FixerAgentV3
+            if hasattr(self.fixer_agent, 'get_handler_statistics'):
+                result['hybrid_handler_stats'] = self.fixer_agent.get_handler_statistics()
+            
             self._print("\n" + "="*70)
             self._print("[Supervisor V3+] ✅ OPTIMIZATION COMPLETE")
             self._print("="*70)
@@ -296,6 +343,18 @@ class SupervisorV3WithOptimization(SupervisorV3):
                 self._print(f"Bottleneck: {perf.bottleneck}")
             
             self._print(f"Total Iterations: {result['iterations']}")
+            
+            # Show Hybrid Handler stats
+            if result.get('hybrid_handler_stats'):
+                self._print("\nHybrid Handler Statistics:")
+                stats = result['hybrid_handler_stats']
+                self._print(f"  Total Errors: {stats.get('total_errors', 0)}")
+                self._print(f"  Cache Hits: {stats.get('cache_hits', 0)}")
+                self._print(f"  Retries: {stats.get('retries', 0)}")
+                self._print(f"  Escalations: {stats.get('escalations', 0)}")
+                self._print(f"  Searches: {stats.get('search_triggered', 0)}")
+                self._print(f"  Success Rate: {stats.get('success_rate', 0):.1%}")
+            
             self._print("="*70)
             
         except Exception as e:
@@ -349,8 +408,10 @@ Requirements:
         print(f"Iterations: {result['iterations']}")
         if result['final_performance']:
             print(f"Final Score: {result['final_performance'].performance_score:.1f}/100")
+        
+        if result.get('hybrid_handler_stats'):
+            print(f"\nHybrid Handler Stats:")
+            for key, val in result['hybrid_handler_stats'].items():
+                print(f"  {key}: {val}")
     
     asyncio.run(test())
-
-
-

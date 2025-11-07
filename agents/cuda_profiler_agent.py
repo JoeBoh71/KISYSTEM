@@ -17,7 +17,7 @@ import asyncio
 sys.path.insert(0, str(Path(__file__).parent.parent / 'core'))
 
 try:
-    from performance_parser import PerformanceParser, PerformanceMetrics
+    from core.performance_parser import PerformanceParser, PerformanceMetrics
 except ImportError:
     print("[CUDAProfiler] Warning: performance_parser not found")
     PerformanceParser = None
