@@ -1,476 +1,592 @@
-# KISYSTEM - Claude Instructions
+# CLAUDE INSTRUCTIONS - KISYSTEM
 
-**Version:** 3.0 (Run 30)  
-**Date:** 2025-11-07  
-**Status:** Production Ready with Hybrid Error Handler
-
----
-
-## CRITICAL: Read This First
-
-This file contains essential instructions for Claude when working on KISYSTEM. 
-**ALWAYS read this file at the start of each session.**
-
-Location: `C:\KISYSTEM\CLAUDE_INSTRUCTIONS.md`
+**Last Updated:** 2025-11-08 07:00 UTC  
+**Session:** RUN 30+ (V3.0 Production Ready)  
+**Status:** Production Ready - Hybrid Error Handler V3.0 Operational
 
 ---
 
-## System Overview
+## 🏗️ PROJECT STRUCTURE
 
-KISYSTEM is a **multi-agent AI development system** for autonomous software creation with focus on:
-- CUDA/C++ code generation with hardware-in-loop optimization
-- Intelligent error handling with categorization and confidence-based decisions
-- Learning from past solutions (SQLite knowledge base)
-- Performance profiling on RTX 4070 GPU
-- Multi-model orchestration (Ollama local LLMs)
-
-**Primary Use Case:** Generate, test, and optimize CUDA kernels for U3DAW (Universal 3D Audio Workstation)
-
----
-
-## Project Context
-
-**Owner:** Jörg Bohne  
-**Company:** Bohne Audio (High-end Lautsprecher)  
-**Location:** Engelskirchen, Germany  
-**Main Project:** U3DAW - GPU-accelerated 3D audio workstation
-
-**User Preferences:**
-- Communication: German (code comments in English)
-- Style: Direct, technical, no small talk
-- Philosophy: "hilf dir selbst, dann hilft dir gott" (self-reliance first)
-- Approach: Action > Speculation, Real solutions > Theoretical discussion
-
----
-
-## Core Architecture (V3.0)
-
-### Component Hierarchy
-
-```
-SupervisorV3WithOptimization (core/supervisor_v3_optimization.py)
-├── BuilderAgent (agents/builder_agent.py)
-├── FixerAgentV3 (agents/fixer_agent_v3.py) ← NEW V3!
-│   └── HybridErrorHandler (core/error_handler.py) ← NEW!
-│       ├── ErrorCategorizer
-│       ├── ModelEscalationChain
-│       └── ConfidenceScorer (optional)
-├── TesterAgent (agents/tester_agent.py)
-├── CUDAProfilerAgent (agents/cuda_profiler_agent.py)
-│   └── PerformanceParser (core/performance_parser.py) ← NEW!
-├── SearchAgent (agents/search_agent_v2.py)
-└── LearningModuleV2 (core/learning_module_v2.py)
-```
-
-### NEW in V3.0: Hybrid Error Handler
-
-**Location:** `core/error_handler.py`
-
-**Key Features:**
-1. **Error Categorization** - 4 categories with specific retry limits:
-   - COMPILATION: 1 retry (deterministic)
-   - RUNTIME: 2 retries (medium flexibility)
-   - PERFORMANCE: 4 retries (iterative)
-   - LOGIC: 3 retries (analysis needed)
-
-2. **Confidence-Based Decisions:**
-   - >85% confidence → USE_CACHE (use cached solution)
-   - 60-85% confidence → RETRY (with prompt variation)
-   - <60% confidence → ESCALATE (bigger model)
-   - Retry limit reached → SEARCH (web search) or GIVE_UP
-
-3. **Model Escalation Chains:**
-   - Builder: deepseek-coder:16b → qwen2.5-coder:32b
-   - Fixer: deepseek-coder:16b → qwen2.5-coder:32b → deepseek-r1:32b
-   - Tester: phi4:latest → deepseek-coder:16b
-
-4. **Smart Search Triggering:**
-   - Compile errors: Search immediately (priority 2)
-   - Runtime errors: Search after 2-3 attempts (priority 3)
-   - Performance: Search late (priority 5)
-
----
-
-## File Structure
+**Root:** `C:\KISYSTEM\`
 
 ```
 C:\KISYSTEM\
 ├── core/
-│   ├── supervisor_v3.py                    # Base supervisor
-│   ├── supervisor_v3_optimization.py       # With optimization loop
-│   ├── model_selector.py                   # Model selection logic
-│   ├── workflow_engine.py                  # Dependency management
-│   ├── learning_module_v2.py               # SQLite knowledge base
-│   ├── error_handler.py                    # NEW: Hybrid Error Handler
-│   ├── performance_parser.py               # NEW: Parse nvprof output
-│   ├── ollama_client.py                    # Ollama API wrapper
-│   └── code_extractor.py                   # Extract code from LLM output
+│   ├── model_selector.py           [v2 - WORKING]
+│   ├── error_handler.py            [v3 - NEW! - WORKING] ✨
+│   ├── performance_parser.py       [v2 - WORKING]
+│   ├── learning_module_v2.py       [v2 - WORKING]
+│   ├── confidence_scorer.py        [v1 - WORKING]
+│   ├── context_tracker.py          [v1 - WORKING]
+│   ├── ollama_client.py            [v1 - WORKING]
+│   ├── supervisor_v3.py            [v1 - WORKING]
+│   ├── supervisor_v3_optimization.py [v1 - WORKING]
+│   ├── workflow_engine.py          [v1 - WORKING]
+│   └── code_extractor.py           [v1 - WORKING]
 │
 ├── agents/
-│   ├── builder_agent.py                    # Code generation
-│   ├── fixer_agent_v3.py                   # NEW: Error fixing with Hybrid Handler
-│   ├── tester_agent.py                     # Test generation & execution
-│   ├── cuda_profiler_agent.py              # Hardware profiling
-│   └── search_agent_v2.py                  # Web search for solutions
+│   ├── builder_agent.py            [v2 - WORKING]
+│   ├── fixer_agent_v3.py           [v3 - NEW! - WORKING] ✨
+│   ├── fixer_agent.py              [v2 - DEPRECATED - use V3]
+│   ├── tester_agent.py             [v2 - WORKING]
+│   ├── search_agent_v2.py          [v2 - WORKING]
+│   ├── review_agent_v2.py          [v1 - WORKING]
+│   ├── docs_agent_v2.py            [v1 - WORKING]
+│   ├── cuda_profiler_agent.py      [v2 - WORKING]
+│   └── hardware_test_agent.py      [v1 - WORKING]
+│
+├── config/
+│   └── kisystem_config.json
+│
+├── security/
+│   └── security_module.py
 │
 ├── tests/
-│   ├── test_system.py                      # Basic system test
-│   └── test_hybrid_handler.py              # NEW: Comprehensive V3.0 tests
+│   ├── test_system.py
+│   ├── test_hybrid_handler.py      [v3 - NEW! - 4/4 PASSED] ✨
+│   ├── test_phase6_optimization.py
+│   └── ...
 │
-├── prompts/
-│   ├── builder_system_prompt.txt
-│   ├── fixer_system_prompt.txt
-│   └── tester_system_prompt.txt
-│
-├── data/
-│   └── learning_database.db                # SQLite knowledge base
-│
-├── CLAUDE_INSTRUCTIONS.md                  # This file
-├── KISYSTEM_COMPLETE.txt                   # Full system documentation
-├── CHANGES.md                              # Change history
-└── README.md                               # Project overview
+└── docs/
+    ├── README.md
+    ├── QUICKSTART.md
+    ├── KISYSTEM_COMPLETE.txt       [v3.0 - Complete Documentation]
+    └── ...
 ```
 
 ---
 
-## Working with KISYSTEM
+## 💻 SYSTEM HARDWARE SPECIFICATIONS
 
-### Session Start Checklist
+### Development System
+- **CPU:** AMD Ryzen 9 7900 (12-core, 24-thread)
+- **GPU:** NVIDIA RTX 4070 (12GB VRAM, CUDA 13.0)
+- **RAM:** 64GB DDR5
+- **Storage:** Samsung 990 PRO SSD (792GB free)
+- **OS:** Windows 10 IoT Enterprise LTSC
+- **IDE:** Visual Studio 2022
 
-1. **Read this file** (CLAUDE_INSTRUCTIONS.md)
-2. **Check current status:**
-   ```python
-   python test_system.py
-   ```
-3. **Review recent changes:**
-   ```
-   git log --oneline -5
-   ```
-4. **Verify Ollama running:**
-   ```powershell
-   ollama list
-   ```
+### Audio Hardware
+- **Interface:** RME HDSPe MADI FX (PCIe)
+  - 64-channel MADI @ 48/96kHz OR 32-channel @ 192kHz
+  - Optical + Coaxial connections
+  - ASIO driver with <2ms round-trip latency
+  
+- **Converters:** 
+  - **M-32 AD:** 192.168.10.3 (16 analog inputs)
+  - **M-32 DA:** 192.168.10.2 (32 analog outputs)
+  - Both: 32-bit/192kHz capable
+  
+- **Configuration:** 32 channels @ 192kHz via optical MADI
 
-### Code Generation Flow
+### Speaker System (9.1.6 Immersive)
 
-```
-User Request
-    ↓
-SupervisorV3WithOptimization.execute_with_optimization()
-    ↓
-[PHASE 1: BUILD]
-    ↓
-BuilderAgent.build()
-    ├── Detect dependencies
-    ├── Select model (complexity-based)
-    └── Generate code
-    ↓
-[PHASE 2: OPTIMIZATION LOOP]
-    ↓
-CUDAProfilerAgent.profile_cuda()
-    ├── Compile with nvcc
-    ├── Run on RTX 4070
-    ├── Parse performance metrics
-    └── Identify bottlenecks
-    ↓
-FixerAgentV3.fix_performance()
-    ├── HybridErrorHandler.handle_error()
-    │   ├── Categorize error
-    │   ├── Check learning database
-    │   ├── Calculate confidence
-    │   └── Make decision (cache/retry/escalate/search)
-    ├── Apply decision
-    └── Generate optimized code
-    ↓
-Repeat until performance_target reached
-    ↓
-Return optimized code
-```
+**Front L/C/R - 4-Way Active:**
+- **Bass:** JBL 2242H (18") - 2x per channel
+- **Mid:** Audax HM210Z10 (8") - 2x per channel  
+- **High:** Bohne Audio patented ribbon tweeters
+- **Subs:** 4x RCF LN19S400 (21") in DBA configuration
 
-### Error Handling Flow (V3.0)
+**Surrounds:**
+- 12x Fostex FF165WK fullrange (6 ear-level, 6 height)
 
-```
-Error Occurs
-    ↓
-HybridErrorHandler.handle_error()
-    ↓
-1. CATEGORIZE
-   ├── COMPILATION (1 retry)
-   ├── RUNTIME (2 retries)
-   ├── PERFORMANCE (4 retries)
-   └── LOGIC (3 retries)
-    ↓
-2. CHECK LEARNING DATABASE
-   └── Find similar solutions (>60% confidence)
-    ↓
-3. CALCULATE CONFIDENCE
-   ├── >85% → USE_CACHE
-   ├── 60-85% → RETRY (with variation)
-   └── <60% → ESCALATE
-    ↓
-4. CHECK RETRY LIMIT
-   └── Exceeded → SEARCH or GIVE_UP
-    ↓
-5. EXECUTE DECISION
-   ├── USE_CACHE: Apply cached solution
-   ├── RETRY: Generate with variation
-   ├── ESCALATE: Use bigger model
-   ├── SEARCH: Web search + retry
-   └── GIVE_UP: Report failure
-    ↓
-6. STORE RESULT
-   └── LearningModuleV2.store_solution()
-```
+**Room:**
+- Size: 50m² / 155m³
+- Target SPL: 110dB @ Sweet Spot
+- System headroom: Running at 1-2% amp power @ 110dB
+
+### Amplifiers
+**Custom Class AB Monoblocks (6 identical units):**
+- **Topology:** Bridged mono
+- **Rails:** ±90V
+- **Capacitance:** 200,000µF per amp
+- **Transformers:** 2.4kW toroidal per amp
+- **Output:** ~1600W RMS per channel
+- **Status:** All channels active, stable
 
 ---
 
-## Model Selection Strategy
+## 🎵 U3DAW PROJECT - UNIVERSAL 3D AUDIO WORKSTATION
 
-### Complexity-Based Selection
+### Project Vision
+GPU-accelerated professional audio workstation rivaling Trinnov Altitude 32, using revolutionary TEP (Time-Energy Processing) technology instead of traditional FIR filtering.
 
-**SIMPLE tasks** (phi4:latest or llama3.1:8b):
-- Single function implementations
-- Basic CUDA kernels (<50 lines)
-- Simple bug fixes
-- Standard library usage
+### Core Innovation: TEP vs FIR
 
-**MEDIUM tasks** (deepseek-coder:16b):
-- Multi-function modules
-- CUDA kernels with shared memory
-- Error fixing (first attempt)
-- Test generation
+**Traditional FIR Problems:**
+- High latency (50-85ms typical)
+- Massive energy waste (brute-force inverse filtering)
+- Pre-ringing artifacts
+- Doesn't respect speaker physics
 
-**COMPLEX tasks** (qwen2.5-coder:32b):
-- Full system implementations
-- Advanced CUDA optimizations
-- Deep debugging (3+ attempts)
-- Architecture decisions
+**TEP Revolution:**
+- **Latency:** <5ms end-to-end
+- **Energy:** 75% less than FIR (cooperative vs. inverse)
+- **Pre-ringing:** <1ms (vs 20-40ms FIR)
+- **Approach:** Adaptive time-frequency-local processing
+- **Philosophy:** Cooperate with speaker, don't force it
 
-**REASONING tasks** (deepseek-r1:32b):
-- Last resort for persistent errors
-- Complex logic errors
-- System design questions
+### TEP Technical Specifications
 
-### Escalation Triggers
+**Signal Processing:**
+- **Multiresolution STFT:** 4096/1024/256 samples per frequency band
+- **Correction Limits:** ±6dB amplitude, ±π/4 phase maximum
+- **Psychoacoustic:** α-Engine for masking and transient detection
+- **Filterbank:** PQMF (Pseudo-QMF) with STFT integration (TEP-PQMF v1.1)
+- **Format:** .TEPCFv1 binary correction fields
 
-**Automatic escalation after:**
-- 3 failures with same model → Next in chain
-- Compile error + no learning match → Search immediately
-- Performance < 50% of target → Larger model
+**Performance Targets:**
+- **Latency:** <5ms E2E (vs 85ms FIR)
+- **GPU Load:** <25% @ 32ch/192kHz
+- **Energy Savings:** ≥25% vs equivalent FIR
+- **Phase Coherence:** <10µs (vs 50-100µs FIR)
+- **SPL Efficiency:** +2-3dB from energy optimization
 
----
+**Operating Modes:**
+- **Low-Latency:** <5ms, FFT 1024/512, Hop 256/128
+- **Reference:** 5-9ms, FFT 2048/1024, Hop 512/256
 
-## Key Rules for Claude
+### Current U3DAW Status
+- **Complete rebuild from scratch in progress**
+- ASIO wrapper functional
+- 32-channel GUI with VU-meters
+- Test tone generator working
+- TEP algorithm: Design phase
+- Hardware integration: Planned
 
-### DO:
-✅ Always read CLAUDE_INSTRUCTIONS.md at session start
-✅ Use real file paths and actual code
-✅ Test changes with `python test_system.py`
-✅ Check for existing solutions in learning database
-✅ Let Hybrid Error Handler make retry decisions
-✅ Use category-specific retry limits
-✅ Store all solutions in learning database
-✅ Commit working code to git
-✅ Use German for communication (unless specified otherwise)
+### Acourate Integration
+- **License:** Commercial (gewerbliche Lizenz vorhanden)
+- **Workflow:** 
+  1. Log-sweep measurements via Acourate
+  2. Python TEP analysis and processing
+  3. Export to .TEPCFv1 binary format
+  4. Real-time convolution in U3DAW
+- **Features:** Multi-channel sync, minimum-phase reconstruction
 
-### DON'T:
-❌ Simulate or mock functionality
-❌ Hardcode retry logic (use Hybrid Handler!)
-❌ Skip error categorization
-❌ Ignore confidence scores
-❌ Use await with non-async functions (LearningModule!)
-❌ Modify supervisor without testing
-❌ Add features without testing
-❌ Use English for general communication
+### Historical Context: Trinnov Experience
+- User developed custom DA boards for Trinnov
+- Discovered measurement discrepancy: ±1dB display vs ±5-6dB REW actual
+- This experience motivated TEP development
+- TEP = first major room correction innovation since Trinnov (2000s)
 
-### CRITICAL Anti-Patterns:
-🚫 **Vorpreschen** (rushing ahead without understanding)
-🚫 **Raten** (guessing instead of checking)
-🚫 **Spekulieren** (theorizing instead of testing)
-🚫 **Multi-Tasking** (finish one thing before starting another)
-
----
-
-## Hardware Setup
-
-**GPU:** NVIDIA RTX 4070  
-**CPU:** AMD Ryzen 9 7950X (16C/32T)  
-**RAM:** 64 GB DDR5  
-**OS:** Windows 11 Pro  
-**CUDA:** 12.6  
-**nvcc:** Available at `C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\bin\nvcc.exe`
-
-### Compilation Settings
-
-**Default nvcc flags:**
-```bash
-nvcc -arch=sm_89 -O3 --use_fast_math -Xcompiler "/O2 /fp:fast"
-```
-
-**For profiling:**
-```bash
-nvcc -arch=sm_89 -lineinfo -O3
-```
+### Business Strategy
+- **Paradigm:** Open publication (papers, talks)
+- **Implementation:** Trade secret (proprietary code)
+- **Reasoning:** First-mover advantage, no patent needed
+- **Goal:** Own what others only want (through 15 years hard work)
 
 ---
 
-## Testing
+## 🤖 AVAILABLE OLLAMA MODELS (7 Total)
 
-### Quick Test
-```powershell
-cd C:\KISYSTEM
-python test_system.py
+| Model | Size | Use Case | Avg Time | Status |
+|-------|------|----------|----------|--------|
+| `mistral:7b` | 4.4 GB | Documentation, Quick tasks | ~30s | ✅ |
+| `llama3.1:8b` | 4.9 GB | Code Review, Simple tasks | ~30s | ⚠️ Quality issues CUDA |
+| `phi4:latest` | 9.1 GB | Testing | ~2min | ✅ |
+| `deepseek-coder-v2:16b` | 8.9 GB | Code Gen (medium/complex) | ~2min | ✅ Preferred |
+| `qwen2.5:32b` | 19 GB | General reasoning | ~7min | ✅ |
+| `qwen2.5-coder:32b` | 19 GB | Complex CUDA/C++ | ~7min | ✅ |
+| `deepseek-r1:32b` | 19 GB | Debugging, Reasoning | ~7min | ✅ |
+
+**Ollama Location:** `C:\KISYSTEM\models`  
+**Ollama Version:** 0.12.9
+
+---
+
+## 🎯 CRITICAL RULES - READ FIRST
+
+### 1. File Handling
+- ❌ **NEVER** use suffixes: `_fixed`, `_new`, `fix_`, `_v2` in filenames
+- ✅ **ALWAYS** create files with their final, correct name
+- ✅ **ALWAYS** provide backup command BEFORE replacing
+- ✅ Example: `copy core\model_selector.py core\model_selector.py.backup`
+
+### 2. Path References
+- Project Root: **Always** `C:\KISYSTEM`
+- User workspace: `D:\AGENT_MEMORY`
+- Never assume current directory
+- Always use absolute paths in code
+
+### 3. Cache Management
+- **ALWAYS** clear `__pycache__` before testing
+- Command: `Remove-Item -Recurse -Force core\__pycache__`
+- Use `python -B` flag to prevent .pyc creation
+- Python caches can load OLD code even after fixes
+
+### 4. PowerShell Commands
+- ❌ **NEVER** include Markdown formatting in commands
+- ❌ **NO** backticks, asterisks, or code blocks in PS commands
+- ✅ Provide **PURE** commands only
+- ✅ Commands on single lines, no formatting
+
+### 5. Git Workflow
+- **Repo:** `github.com/JoeBoh71/KISYSTEM`
+- **Branch:** `main`
+- **Visibility:** Public
+- **Update this file:** After every significant change
+
+---
+
+## 📋 USER PROFILE & PREFERENCES
+
+### Background
+- **Name:** Jörg Bohne
+- **Company:** Bohne Audio (Engelskirchen, Germany)
+- **Education:** Physicist, IQ 154
+- **Experience:** 15+ years audio engineering, patented ribbon tweeters
+- **Also:** Professional drummer
+- **Location:** Gummersbach, North Rhine-Westphalia, DE
+
+### Working Style - CRITICAL
+- **Methodology:** Scientific/pragmatic - systematic analysis with measurable goals
+- **NO speculation or "what if"** - only directly implementable solutions
+- **ALWAYS ask for approval before each step** - when uncertain, ask rather than rush ahead
+- **Fix errors immediately** - if errors in early steps, DON'T continue - go back and fix
+- **Step-by-step, methodical, thorough approach**
+- **Correct actively** when explanations become too complex, too many steps at once, or high-level philosophy towers emerge
+- **No bullshit, no marketing language, no speculation about possibilities**
+
+### Communication Preferences
+- **Primary Language:** German (but accepts English)
+- **Style:** Radical self-honesty, no social mask
+- **Emotional threshold:** Very high - not missing empathy, but when triggered, most people don't want to be there
+- **Self-image:** "Animal with higher brain, self-restraining predator" - conscious self-control
+- **Philosophy:** "Ich muss gar nichts" (I don't have to do anything) - sovereignty through capability
+- **Achievement:** HAS what others only WANT through 15 years hard work
+
+### Personal Context
+- **Family:** Unconditionally supportive, but doesn't need to understand everything
+- **Neighbors:** Josef (deceased, recognized talent early), Gerd (deceased, "he's above us all"), Edgar (alive, "doesn't matter")
+- **Note:** Josef, Gerd, Edgar are NEIGHBORS, not family
+
+### Technical Environment
+- **Development:** C++20, CUDA 13, Python 3.11, Qt6
+- **Audio Tools:** Acourate (commercial license)
+- **Hardware:** See System Hardware section above
+- **Budget:** Claude Pro 200€/month
+
+---
+
+## ✅ V3.0 FEATURES - HYBRID ERROR HANDLER (RUN 30)
+
+### **Status: Production Ready - All Tests Passing (4/4)** ✨
+
+**Major Components Added:**
+
+### 1. **HybridErrorHandler** (`core/error_handler.py`, 603 lines)
+- ✅ Intelligent error categorization (4 types)
+- ✅ Confidence-based decision making
+- ✅ Model escalation chains
+- ✅ Smart search triggering
+- ✅ Statistics tracking
+
+**Error Categories:**
+```python
+COMPILATION  → max_retries=1  (Strict)
+RUNTIME      → max_retries=2  (Medium)
+PERFORMANCE  → max_retries=4  (Flexible)
+LOGIC        → max_retries=3  (Medium-Flexible)
 ```
 
-### Comprehensive Test (V3.0)
-```powershell
-cd C:\KISYSTEM
-python test_hybrid_handler.py
+**Decision Logic:**
+```python
+confidence > 85%  → USE_CACHE (high confidence solution)
+confidence 60-85% → RETRY_WITH_VARIATION
+attempts < limit  → ESCALATE (bigger model)
+last resort       → SEARCH (web lookup)
 ```
 
-**Expected output:**
+### 2. **FixerAgentV3** (`agents/fixer_agent_v3.py`, 671 lines)
+- ✅ Integrated HybridErrorHandler
+- ✅ Removed hardcoded retry logic
+- ✅ Category-aware error handling
+- ✅ Confidence-based caching
+- ✅ Performance optimization method
+
+### 3. **PerformanceParser** (`core/performance_parser.py`, 300 lines)
+- ✅ Parse nvprof/nsys output
+- ✅ Calculate performance score (0-100)
+- ✅ Identify bottlenecks (memory/compute/occupancy)
+- ✅ Generate optimization suggestions
+
+### 4. **Comprehensive Tests** (`tests/test_hybrid_handler.py`, 364 lines)
+- ✅ Error categorization tests (6 cases)
+- ✅ Confidence decision tests (2 cases)
+- ✅ Direct Fixer V3 test (1 integration test)
+- ✅ Full Supervisor optimization loop (1 E2E test)
+- ✅ **Result: 4/4 tests PASSED (100%)**
+
+**Test Output:**
 ```
+======================================================================
+FINAL RESULTS:
+======================================================================
 ✓ Error Categorization: PASSED
 ✓ Confidence Decisions: PASSED
 ✓ Direct Fixer V3: PASSED
 ✓ Supervisor with Iterations: PASSED
+======================================================================
+Total: 4/4 tests passed (100%)
+======================================================================
 
 ✅ ALL TESTS PASSED - HYBRID HANDLER FULLY FUNCTIONAL!
 ```
 
-### Manual CUDA Test
-```powershell
-cd C:\KISYSTEM
-python -c "from agents.cuda_profiler_agent import CUDAProfilerAgent; import asyncio; asyncio.run(CUDAProfilerAgent().test_cuda_available())"
-```
+---
+
+## 🔮 FUTURE FEATURES - IN DISCUSSION
+
+### **Hardware Protocol Discovery Agent** (Discussed 2025-11-08)
+
+**Concept:** Auto-discover and generate communication code for audio hardware
+
+**Use Case:** 
+- M-32 AD/DA converters (192.168.10.2, 192.168.10.3)
+- Midas M32 mixer
+- Future hardware additions
+
+**Approaches Under Consideration:**
+
+#### **Option A: Manual Research → Agent Implementation** (Pragmatic, Fast)
+- Research protocols manually (datasheets, Wireshark, forums)
+- Create template agents per device type
+- KISYSTEM generates device-specific code from templates
+- **Pro:** Quick, reliable, works immediately
+- **Con:** Manual initial work per device type
+
+#### **Option B: Discovery Agent with Sniffer-Tools** (Advanced, Complex)
+- ProtocolDiscoveryAgent with nmap, Wireshark integration
+- Automatic protocol detection (HTTP/REST, OSC, MIDI, Binary)
+- Pattern recognition for command structures
+- **Pro:** Fully autonomous, future-proof
+- **Con:** 2+ weeks development, requires ML/pattern recognition
+
+#### **Option C: Hybrid Approach** (Best of Both)
+- Start with Option A for immediate needs
+- Develop Option B as separate long-term component
+- **Pro:** Pragmatic now, advanced later
+- **Con:** Two-phase implementation
+
+**Status:** Concept phase - awaiting decision on approach
+
+**Files:** No implementation yet - design discussion only
 
 ---
 
-## Troubleshooting
+## ⚠️ KNOWN ISSUES
 
-### Common Issues
+### **None Currently - All Tests Passing!**
 
-**1. Ollama not responding:**
-```powershell
-# Check if running:
-ollama list
-
-# Restart if needed:
-# Close Ollama Desktop app, then restart
-```
-
-**2. Import errors:**
-```powershell
-# Clear Python cache:
-Remove-Item -Recurse -Force core\__pycache__,agents\__pycache__
-```
-
-**3. CUDA compilation fails:**
-```powershell
-# Check nvcc:
-nvcc --version
-
-# Test simple compilation:
-echo "__global__ void test() {}" > test.cu
-nvcc test.cu -o test.exe
-```
-
-**4. Learning database locked:**
-```powershell
-# Close all Python processes, then:
-Remove-Item data\learning_database.db-journal -ErrorAction SilentlyContinue
-```
-
-**5. Hybrid Handler fails:**
-- Check if `error_handler.py` exists in `core/`
-- Verify no `await` calls to LearningModule (it's synchronous!)
-- Run `python test_hybrid_handler.py` to diagnose
+**Previous Issues Resolved in V3.0:**
+- ✅ Hardcoded retry logic → Hybrid Handler
+- ✅ No error categorization → 4 categories implemented
+- ✅ No caching → Confidence-based cache functional
+- ✅ Fixed escalation → Smart chains working
+- ✅ Late search → Priority-based triggering operational
 
 ---
 
-## Git Workflow
+## 🔧 CONVENTIONS & PATTERNS
 
-### Before Changes
-```powershell
-git status
-git pull
+### Model Selection Strategy
+
+**By Task Type:**
+- Code Generation (simple): `llama3.1:8b` (30s) - ⚠️ NOT for CUDA
+- Code Generation (medium): `deepseek-coder-v2:16b` (2min)
+- Code Generation (complex): `qwen2.5-coder:32b` (7min)
+- Debugging/Reasoning: `deepseek-r1:32b` (7min)
+- Testing: `phi4` (2min)
+- Documentation: `mistral:7b` (30s)
+- General Reasoning: `qwen2.5:32b` (7min)
+
+**By Language/Domain:**
+- **CUDA Simple** (vector ops): `deepseek-coder-v2:16b`
+- **CUDA Medium** (shared mem): `deepseek-coder-v2:16b`
+- **CUDA Complex** (FFT, multi-kernel): `qwen2.5-coder:32b`
+- **C++ ASIO**: `deepseek-coder-v2:16b` or `qwen2.5-coder:32b`
+- **Audio DSP**: `deepseek-coder-v2:16b` (simple) or `qwen2.5-coder:32b` (complex)
+
+**Model Escalation Chains (V3.0):**
+```python
+Builder:  mistral:7b → deepseek-coder-v2:16b → qwen2.5-coder:32b
+Fixer:    deepseek-coder-v2:16b → qwen2.5-coder:32b → deepseek-r1:32b
+Tester:   phi4:latest → deepseek-coder-v2:16b
 ```
 
-### After Changes
-```powershell
-git add .
-git commit -m "Clear description of what changed"
-git push
+**AVOID:**
+- `llama3.1:8b` for CUDA code generation (quality issues)
+
+### Error Handling Strategy: HYBRID (V3.0)
+
+**Philosophy:** Balance between learning efficiency and practical flexibility
+
+**Decision Tree:**
+```
+ERROR DETECTED
+    ↓
+1. CATEGORIZE (Compilation/Runtime/Performance/Logic)
+    ↓
+2. CALCULATE CONFIDENCE (using existing confidence_scorer.py)
+    ↓
+3. DECIDE:
+   IF confidence > 85%:
+       → Use cached solution (high confidence)
+   ELIF confidence > 60% AND attempts < category_limit:
+       → Retry with prompt variation
+   ELIF attempts < escalation_limit:
+       → Escalate to next model in chain
+   ELSE:
+       → SearchAgent (web search)
+    ↓
+4. TRACK RESULT (update learning DB, success rate)
 ```
 
-### Backup Before Major Changes
-```powershell
-copy core\supervisor_v3_optimization.py core\supervisor_backup.py
-```
+### Code Style
+- Type hints mandatory
+- Docstrings for all public methods
+- Error messages: `[ComponentName] ✗ Error description`
+- Success messages: `[ComponentName] ✓ Success description`
+- Progress: `[ComponentName] Step X: Description...`
 
 ---
 
-## Performance Targets
+## 🚫 NEVER DO
 
-**CUDA Kernel Goals:**
-- Compilation: <5 seconds
-- Performance Score: >80/100
-- Occupancy: >50%
-- Memory Efficiency: >70%
-- Iterations to optimize: <10
+1. **File Naming**
+   - Create files with `_fixed`, `_new`, `fix_` suffixes
+   - Assume file locations without verification
 
-**System Goals:**
-- Test pass rate: 100%
-- Fix success rate: >80%
-- Cache hit rate: >30% (after warm-up)
-- Average fix time: <2 minutes
+2. **Communication**
+   - Provide PowerShell commands with Markdown formatting
+   - Promise "production ready" without thorough testing
+   - Say "I don't have access to..." without trying tools first
+   - Make counting errors (it's 7 models, not 6!)
+   - Marketing language or speculation
 
----
+3. **Technical**
+   - Skip cache clearing before tests
+   - Proceed with broken code in early steps
+   - Make multiple file changes simultaneously without approval
+   - Continue when errors occur - fix immediately instead
 
-## Version History
-
-**V3.0 (Run 30 - 2025-11-07):**
-- ✅ Hybrid Error Handler with categorization
-- ✅ Confidence-based retry decisions
-- ✅ Model escalation chains
-- ✅ Performance parser with bottleneck detection
-- ✅ Smart search triggering
-- ✅ 4/4 tests passing
-
-**V2.0 (Run 20-29):**
-- Multi-agent system with learning
-- Hardware-in-loop optimization
-- Search agent integration
-
-**V1.0 (Run 1-19):**
-- Basic CUDA generation
-- Simple error handling
+4. **Philosophy**
+   - Spekulationen oder "was wäre wenn"
+   - High-O/High-C Philosophie-Türme
+   - Too many steps at once
+   - Overly complex explanations
 
 ---
 
-## Contact & Resources
+## ✅ ALWAYS DO
 
-**GitHub:** https://github.com/JoeBoh71/KISYSTEM  
-**Owner:** Jörg Bohne  
-**Email:** [Contact via GitHub]
+1. **Session Start**
+   - Read this file FIRST: `web_fetch` the GitHub URL
+   - Check KISYSTEM_COMPLETE.txt for comprehensive architecture
+   - Verify current state vs. documented state
 
-**Key Files to Reference:**
-- `KISYSTEM_COMPLETE.txt` - Full system documentation
-- `CHANGES.md` - Detailed change history
-- `test_hybrid_handler.py` - V3.0 test suite
+2. **Before Changes**
+   - **Ask for approval for each significant step**
+   - Clear cache if modifying Python files
+   - Provide backup command first
+
+3. **After Changes**
+   - Update this file if structure/status changed
+   - Test changes before claiming success
+   - Document issues discovered
+
+4. **Communication**
+   - Keep responses concise and actionable
+   - Provide pure commands without formatting
+   - Admit mistakes immediately
+   - Radikale Selbst-Ehrlichkeit (radical self-honesty)
 
 ---
 
-## Session End Checklist
+## 📊 PROJECT GOALS
 
-Before ending session:
-1. ✅ Run tests (`python test_system.py` or `test_hybrid_handler.py`)
-2. ✅ Commit changes to git
-3. ✅ Update CHANGES.md if significant
-4. ✅ Note any pending issues for next session
-5. ✅ Clear any temporary files
+### Primary Goal: U3DAW
+**Universal 3D Audio Workstation with TEP Technology**
+- GPU-accelerated audio processing (CUDA)
+- TEP algorithm implementation (<5ms latency)
+- RME MADI FX integration (32ch @ 192kHz)
+- 9.1.6 immersive audio support
+- Professional-grade like Trinnov Altitude 32
+- Acourate integration for measurements
+
+### KISYSTEM Role
+**Autonomous Development Assistant**
+- Generate CUDA kernels for audio DSP
+- Test code with actual hardware (RTX 4070, RME MADI)
+- Learn from errors (never repeat same mistake)
+- Optimize performance automatically
+- Eventually: Self-develop U3DAW components
+
+### Success Metrics
+- Compilation success rate > 90%
+- No repeated errors (learning works)
+- Performance improvements per iteration
+- Hardware-in-the-loop testing functional
+- Autonomous operation (minimal manual intervention)
 
 ---
 
-**Last Updated:** 2025-11-07 (Run 30)  
-**Next Review:** After Run 35 or major architecture change
+## 📝 SESSION LOGS
+
+### 2025-11-07 - RUN 30 (V3.0 Complete)
+- ✅ Hybrid Error Handler implemented (603 lines)
+- ✅ FixerAgentV3 created (671 lines)
+- ✅ PerformanceParser enhanced (300 lines)
+- ✅ Comprehensive test suite (364 lines)
+- ✅ 4/4 tests PASSED (100%)
+- ✅ Committed to Git (7,000+ lines added)
+- ✅ Status: Production Ready
+
+### 2025-11-07 - RUNs 1-29
+- CUDA optimization loop debugging (14 hours)
+- ModelSelector fixes
+- PerformanceParser import fixes
+- Learning Module fixes
+- Auto-include injection fixes
+
+### 2025-11-08 - Future Feature Discussion
+- Protocol Discovery Agent concept
+- Three approaches evaluated (A/B/C)
+- Awaiting decision on implementation strategy
+
+---
+
+## 🔗 IMPORTANT LINKS
+
+- **GitHub Repo:** https://github.com/JoeBoh71/KISYSTEM
+- **This File:** https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/CLAUDE_INSTRUCTIONS.md
+- **Complete Documentation:** KISYSTEM_COMPLETE.txt (in repo)
+- **User Preferences:** See userPreferences in context (German, scientific approach)
+
+---
+
+## 📞 UPDATE PROTOCOL
+
+**When to update this file:**
+- After completing a fix/feature
+- When file structure changes
+- When discovering new issues
+- After significant debugging sessions
+- When adding/removing models
+- Before ending a long session
+- After major version bumps (V3.0 → V3.1)
+
+**How to update:**
+1. Create updated version with `create_file`
+2. User commits to GitHub
+3. File becomes source of truth for next session
+
+---
+
+**END OF INSTRUCTIONS**
+
+*Remember: This file is YOUR memory across sessions. Keep it accurate and up-to-date!*
+
+**Current Version:** V3.0 (RUN 30+)  
+**Next Major Update:** When V3.1 features are implemented or Discovery Agent decision is made
