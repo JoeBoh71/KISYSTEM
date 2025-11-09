@@ -50,16 +50,22 @@ class SupervisorV3WithOptimization(SupervisorV3):
         super().__init__(*args, **kwargs)
         self.max_optimization_iterations = max_optimization_iterations
         
-        # Import profiler agent
+        # Import profiler agent (FIX: correct path to agents/)
         try:
+            # Add agents directory to path
+            sys.path.insert(0, str(Path(__file__).parent.parent / "agents"))
             from cuda_profiler_agent import CUDAProfilerAgent
             self.profiler = CUDAProfilerAgent(verbose=self.verbose)
             if self.verbose:
                 print("[Supervisor V3+] ✓ CUDA Profiler enabled")
-        except ImportError:
+        except ImportError as e:
             self.profiler = None
             if self.verbose:
-                print("[Supervisor V3+] ⚠️  CUDA Profiler not available")
+                print(f"[Supervisor V3+] ⚠️  CUDA Profiler not available: {e}")
+        except Exception as e:
+            self.profiler = None
+            if self.verbose:
+                print(f"[Supervisor V3+] ✗ CUDA Profiler initialization failed: {e}")
         
         # Import search agent for error research
         try:
