@@ -1,9 +1,10 @@
 """
-KISYSTEM CUDA Profiler Agent
+KISYSTEM CUDA Profiler Agent - V2 Fixed
 Compile, run, and profile CUDA code for performance optimization
 
 Author: Jörg Bohne
-Date: 2025-11-06
+Date: 2025-11-09
+Version: 2.0 - Fixed nsys output parsing (stdout not stderr)
 """
 
 import subprocess
@@ -236,9 +237,12 @@ class CUDAProfilerAgent:
             performance = None
             suggestions = None
             
-            if profile and PerformanceParser and run_result.get('profile_output'):
+            # Try profile_output first, fallback to runtime_output (nsys writes there)
+            output_to_parse = run_result.get('profile_output') or run_result.get('output')
+            
+            if profile and PerformanceParser and output_to_parse:
                 self._print(f"[CUDAProfiler] Step 3: Analyzing performance...")
-                performance = PerformanceParser.parse_output(run_result['profile_output'])
+                performance = PerformanceParser.parse_output(output_to_parse)
                 
                 if performance:
                     self._print(f"[CUDAProfiler] Performance Score: {performance.performance_score:.1f}/100")
@@ -251,6 +255,8 @@ class CUDAProfilerAgent:
                         self._print(f"[CUDAProfiler] Found {len(suggestions)} optimization opportunities")
                         for sugg in suggestions:
                             self._print(f"[CUDAProfiler]   - {sugg['issue']}: {sugg['severity']}")
+                else:
+                    self._print(f"[CUDAProfiler] ⚠️  Could not parse performance metrics")
             
             self._print("="*70)
             
@@ -276,7 +282,7 @@ class CUDAProfilerAgent:
         """
         executable = output_dir / "kernel.exe"
         
-        # nvcc command - optimized for RTX 4070 (Ampere, sm_86)
+        # nvcc command - optimized for RTX 4070 (Ada Lovelace, sm_89)
         cmd = [
             'nvcc',
             str(source_file),
@@ -284,7 +290,7 @@ class CUDAProfilerAgent:
             '-lcufft',  # Link cuFFT
             '-O3',      # Optimization
             '--use_fast_math',
-            '-arch=sm_86',  # RTX 4070 = Ampere = sm_86
+            '-arch=sm_89',  # RTX 4070 = Ada Lovelace = sm_89
             '--ptxas-options=-v'  # Verbose PTX assembler for register/memory info
         ]
         
@@ -454,10 +460,13 @@ class CUDAProfilerAgent:
             stderr_text = stderr.decode('utf-8', errors='ignore')
             
             if proc.returncode == 0:
+                # CRITICAL FIX: nsys writes stats tables to STDOUT, not stderr!
+                # stderr only has progress bars [1/8] [====100%]
+                # stdout has the actual data [6/8] cuda_gpu_kern_sum tables
                 return {
                     'status': 'success',
-                    'output': stdout_text,
-                    'profile_output': stderr_text
+                    'output': stdout_text,  # Runtime output
+                    'profile_output': stdout_text + "\n" + stderr_text  # ← FIXED! Both for parser
                 }
             else:
                 # Fallback to no profiling
@@ -531,4 +540,3 @@ int main() {
                 print(f"  - {sugg['issue']}: {sugg['fix']}")
     
     asyncio.run(test())
-
