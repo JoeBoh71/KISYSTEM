@@ -563,16 +563,13 @@ class SupervisorV3:
         # Import here to avoid circular imports
         sys.path.insert(0, str(Path(__file__).parent.parent / 'agents'))
         from builder_agent import BuilderAgent
-        from types import SimpleNamespace
         
         builder = BuilderAgent(learning_module=self.learning)
         
         # Override model if provided (Phase 7)
         if model_override and hasattr(builder, 'model_selector'):
-            # Wrap string in object with .name attribute for compatibility
-            model_obj = SimpleNamespace(name=model_override)
             original_select = builder.model_selector.select_model
-            builder.model_selector.select_model = lambda *args, **kwargs: model_obj
+            builder.model_selector.select_model = lambda *args, **kwargs: model_override
         
         result = await builder.build(task, language, context)
         
@@ -592,16 +589,13 @@ class SupervisorV3:
         """Execute test phase"""
         
         from tester_agent import TesterAgent
-        from types import SimpleNamespace
         
         tester = TesterAgent(learning_module=self.learning)
         
         # Override model if provided (Phase 7)
         if model_override and hasattr(tester, 'model_selector'):
-            # Wrap string in object with .name attribute for compatibility
-            model_obj = SimpleNamespace(name=model_override)
             original_select = tester.model_selector.select_model
-            tester.model_selector.select_model = lambda *args, **kwargs: model_obj
+            tester.model_selector.select_model = lambda *args, **kwargs: model_override
         
         result = await tester.test(code, language, context=context)
         
@@ -645,7 +639,6 @@ class SupervisorV3:
         """Execute fix phase"""
         
         from fixer_agent import FixerAgent
-        from types import SimpleNamespace
         
         fixer = FixerAgent(
             learning_module=self.learning,
@@ -654,10 +647,8 @@ class SupervisorV3:
         
         # Override model if provided (Phase 7)
         if model_override and hasattr(fixer, 'model_selector'):
-            # Wrap string in object with .name attribute for compatibility
-            model_obj = SimpleNamespace(name=model_override)
             original_select = fixer.model_selector.select_model
-            fixer.model_selector.select_model = lambda *args, **kwargs: model_obj
+            fixer.model_selector.select_model = lambda *args, **kwargs: model_override
         
         fix_context = {
             "failure_count": iteration - 1,  # 0-indexed
