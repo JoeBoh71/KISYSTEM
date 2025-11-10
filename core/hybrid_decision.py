@@ -1,0 +1,494 @@
+"""
+KISYSTEM Hybrid Decision Logic (Phase 7)
+=========================================
+
+Model selection based on weighted combination:
+    Final = 0.40·Meta + 0.30·Complexity + 0.30·Failure
+
+Components:
+- Meta (40%): Historical performance from Meta-Supervisor
+- Complexity (30%): Task complexity analysis
+- Failure (30%): Recent failure patterns and escalation logic
+
+Author: Jörg Bohne / Bohne Audio
+Last Updated: 2025-11-10
+"""
+
+from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from pathlib import Path
+import re
+
+
+@dataclass
+class ComplexityAnalysis:
+    """Result of task complexity analysis."""
+    complexity_level: str  # 'trivial', 'simple', 'medium', 'complex', 'deep'
+    domain: str  # 'cuda', 'cpp', 'asio', 'audio_dsp', 'generic'
+    keywords_found: List[str]
+    confidence: float  # 0-1
+
+
+@dataclass
+class ModelDecision:
+    """Final model selection decision."""
+    selected_model: str
+    confidence: float
+    meta_score: float
+    complexity_score: float
+    failure_score: float
+    reasoning: str
+    escalation_path: List[str]  # Models to try if this fails
+
+
+class HybridDecision:
+    """
+    Hybrid Decision Logic for model selection.
+    
+    Combines three sources of information:
+    1. Meta-Supervisor: Historical performance data (40%)
+    2. Complexity: Task complexity analysis (30%)
+    3. Failure: Recent failure patterns (30%)
+    """
+    
+    # 7-Model-Routing Table (ordered by capability/cost)
+    MODEL_HIERARCHY = [
+        "llama3.1:8b",           # Rank 1: Trivial (NO CUDA!)
+        "mistral:7b",            # Rank 2: Generic/Quick
+        "phi4:latest",           # Rank 3: Tests/Specs/Docs
+        "deepseek-coder-v2:16b", # Rank 4: Mid-Coding (Preferred)
+        "qwen2.5:32b",           # Rank 5: Reasoning
+        "qwen2.5-coder:32b",     # Rank 6: Complex CUDA
+        "deepseek-r1:32b"        # Rank 7: Deep Fixes
+    ]
+    
+    # Domain-specific routing preferences
+    DOMAIN_ROUTING = {
+        'cuda_simple': ['deepseek-coder-v2:16b', 'qwen2.5-coder:32b', 'deepseek-r1:32b'],
+        'cuda_medium': ['deepseek-coder-v2:16b', 'qwen2.5-coder:32b', 'deepseek-r1:32b'],
+        'cuda_complex': ['qwen2.5-coder:32b', 'deepseek-r1:32b', 'deepseek-coder-v2:16b'],
+        'cpp': ['deepseek-coder-v2:16b', 'qwen2.5-coder:32b', 'deepseek-r1:32b'],
+        'asio': ['deepseek-coder-v2:16b', 'qwen2.5-coder:32b', 'qwen2.5:32b'],
+        'audio_dsp_simple': ['deepseek-coder-v2:16b', 'qwen2.5-coder:32b', 'deepseek-r1:32b'],
+        'audio_dsp_complex': ['qwen2.5-coder:32b', 'deepseek-r1:32b', 'deepseek-coder-v2:16b'],
+        'tests': ['phi4:latest', 'mistral:7b', 'deepseek-coder-v2:16b'],
+        'docs': ['phi4:latest', 'mistral:7b', 'qwen2.5:32b'],
+        'generic': ['mistral:7b', 'qwen2.5:32b', 'phi4:latest']
+    }
+    
+    # Complexity detection patterns
+    CUDA_PATTERNS = {
+        'simple': [
+            r'__global__.*vector',
+            r'cudaMemcpy\(',
+            r'cudaMalloc\(',
+            r'threadIdx\.x',
+            r'blockIdx\.x'
+        ],
+        'medium': [
+            r'__shared__',
+            r'__syncthreads\(\)',
+            r'atomicAdd\(',
+            r'reduction',
+            r'warp.*shuffle'
+        ],
+        'complex': [
+            r'cufft',
+            r'cublas',
+            r'cudnn',
+            r'multi.*kernel',
+            r'stream.*async',
+            r'cooperative.*groups'
+        ]
+    }
+    
+    ASIO_PATTERNS = [
+        r'ASIOCallbacks',
+        r'bufferSwitch',
+        r'ASIOSamples',
+        r'ASIOTime',
+        r'createBuffers'
+    ]
+    
+    AUDIO_DSP_PATTERNS = {
+        'simple': [
+            r'\bSTFT\b',
+            r'\bFFT\b',
+            r'sample_rate',
+            r'audio.*buffer'
+        ],
+        'complex': [
+            r'convolution',
+            r'filterbank',
+            r'PQMF',
+            r'psychoacoustic',
+            r'multiresolution'
+        ]
+    }
+    
+    def __init__(self, meta_supervisor=None):
+        """
+        Initialize Hybrid Decision Logic.
+        
+        Args:
+            meta_supervisor: Optional MetaSupervisor instance for historical data
+        """
+        self.meta_supervisor = meta_supervisor
+        self.failure_history: Dict[str, List[str]] = {}  # domain -> [failed_model1, failed_model2, ...]
+    
+    def analyze_complexity(self, task_description: str, code_snippet: str = "") -> ComplexityAnalysis:
+        """
+        Analyze task complexity from description and code.
+        
+        Args:
+            task_description: Natural language description of the task
+            code_snippet: Optional code snippet to analyze
+        
+        Returns:
+            ComplexityAnalysis object
+        """
+        text = (task_description + " " + code_snippet).lower()
+        keywords_found = []
+        
+        # Check for test/doc patterns FIRST (highest priority)
+        # "Write tests for CUDA" should be 'tests', not 'cuda'
+        if any(kw in text for kw in ['test', 'unittest', 'docstring', 'documentation']):
+            domain = 'tests' if 'test' in text else 'docs'
+            complexity_level = 'simple'
+            keywords_found = [domain]
+            confidence = 0.8
+        
+        # Check for CUDA patterns
+        elif any(kw in text for kw in ['cuda', '__global__', 'kernel', 'gpu']):
+            domain = 'cuda'
+            
+            # Determine CUDA complexity
+            complex_matches = sum(1 for pattern in self.CUDA_PATTERNS['complex'] 
+                                if re.search(pattern, text, re.IGNORECASE))
+            medium_matches = sum(1 for pattern in self.CUDA_PATTERNS['medium'] 
+                               if re.search(pattern, text, re.IGNORECASE))
+            simple_matches = sum(1 for pattern in self.CUDA_PATTERNS['simple'] 
+                               if re.search(pattern, text, re.IGNORECASE))
+            
+            if complex_matches >= 2:
+                complexity_level = 'complex'
+                keywords_found = [p for p in self.CUDA_PATTERNS['complex'] 
+                                if re.search(p, text, re.IGNORECASE)]
+            elif medium_matches >= 2:
+                complexity_level = 'medium'
+                keywords_found = [p for p in self.CUDA_PATTERNS['medium'] 
+                                if re.search(p, text, re.IGNORECASE)]
+            else:
+                complexity_level = 'simple'
+                keywords_found = [p for p in self.CUDA_PATTERNS['simple'] 
+                                if re.search(p, text, re.IGNORECASE)]
+            
+            confidence = min(1.0, (complex_matches + medium_matches + simple_matches) / 3.0)
+        
+        # Check for ASIO patterns
+        elif any(re.search(pattern, text, re.IGNORECASE) for pattern in self.ASIO_PATTERNS):
+            domain = 'asio'
+            complexity_level = 'medium'  # ASIO is always medium complexity
+            keywords_found = [p for p in self.ASIO_PATTERNS if re.search(p, text, re.IGNORECASE)]
+            confidence = 0.9
+        
+        # Check for Audio DSP patterns
+        elif any(kw in text for kw in ['audio', 'dsp', 'stft', 'fft', 'filter']):
+            domain = 'audio_dsp'
+            
+            complex_matches = sum(1 for pattern in self.AUDIO_DSP_PATTERNS['complex'] 
+                                if re.search(pattern, text, re.IGNORECASE))
+            simple_matches = sum(1 for pattern in self.AUDIO_DSP_PATTERNS['simple'] 
+                               if re.search(pattern, text, re.IGNORECASE))
+            
+            if complex_matches >= 1:
+                complexity_level = 'complex'
+                keywords_found = [p for p in self.AUDIO_DSP_PATTERNS['complex'] 
+                                if re.search(p, text, re.IGNORECASE)]
+            else:
+                complexity_level = 'simple'
+                keywords_found = [p for p in self.AUDIO_DSP_PATTERNS['simple'] 
+                                if re.search(p, text, re.IGNORECASE)]
+            
+            confidence = min(1.0, (complex_matches + simple_matches) / 2.0)
+        
+        # Check for C++ patterns
+        elif any(kw in text for kw in ['c++', 'cpp', 'class', 'template']):
+            domain = 'cpp'
+            complexity_level = 'medium'
+            keywords_found = ['c++']
+            confidence = 0.7
+        
+        # Check for test/doc patterns
+        elif any(kw in text for kw in ['test', 'unittest', 'docstring', 'documentation']):
+            domain = 'tests' if 'test' in text else 'docs'
+            complexity_level = 'simple'
+            keywords_found = [domain]
+            confidence = 0.8
+        
+        # Generic task
+        else:
+            domain = 'generic'
+            complexity_level = 'simple'
+            keywords_found = []
+            confidence = 0.5
+        
+        return ComplexityAnalysis(
+            complexity_level=complexity_level,
+            domain=domain,
+            keywords_found=keywords_found[:5],  # Limit to 5 keywords
+            confidence=confidence
+        )
+    
+    def calculate_complexity_score(self, analysis: ComplexityAnalysis) -> Tuple[float, str]:
+        """
+        Calculate complexity score for model selection (0-1).
+        
+        Returns:
+            (score, recommended_model)
+            Higher score = need more powerful model
+        """
+        # Map complexity to score
+        complexity_scores = {
+            'trivial': 0.0,
+            'simple': 0.3,
+            'medium': 0.6,
+            'complex': 0.9,
+            'deep': 1.0
+        }
+        
+        base_score = complexity_scores.get(analysis.complexity_level, 0.5)
+        
+        # Weight by confidence
+        score = base_score * analysis.confidence
+        
+        # Get domain-specific routing
+        domain_key = f"{analysis.domain}_{analysis.complexity_level}"
+        if domain_key not in self.DOMAIN_ROUTING:
+            domain_key = analysis.domain
+        if domain_key not in self.DOMAIN_ROUTING:
+            domain_key = 'generic'
+        
+        recommended_models = self.DOMAIN_ROUTING[domain_key]
+        recommended_model = recommended_models[0]
+        
+        return score, recommended_model
+    
+    def calculate_failure_score(self, domain: str) -> Tuple[float, Optional[str]]:
+        """
+        Calculate failure score based on recent failure patterns.
+        
+        Returns:
+            (score, escalate_to_model)
+            Higher score = need to escalate to better model
+        """
+        if domain not in self.failure_history:
+            return 0.0, None
+        
+        failed_models = self.failure_history[domain]
+        
+        if not failed_models:
+            return 0.0, None
+        
+        # Score based on number of recent failures
+        # 1 failure: 0.3, 2 failures: 0.7, 3+ failures: 1.0
+        failure_count = len(failed_models)
+        score = min(1.0, 0.3 + (failure_count - 1) * 0.4)
+        
+        # Determine escalation: skip failed models, use next in hierarchy
+        last_failed = failed_models[-1]
+        try:
+            last_idx = self.MODEL_HIERARCHY.index(last_failed)
+            # Escalate to next model in hierarchy
+            if last_idx < len(self.MODEL_HIERARCHY) - 1:
+                escalate_to = self.MODEL_HIERARCHY[last_idx + 1]
+            else:
+                escalate_to = None  # Already at top
+        except ValueError:
+            escalate_to = None
+        
+        return score, escalate_to
+    
+    def decide_model(
+        self,
+        task_description: str,
+        code_snippet: str = "",
+        domain: Optional[str] = None
+    ) -> ModelDecision:
+        """
+        Make hybrid decision for model selection.
+        
+        Combines:
+        - Meta-Supervisor historical data (40%)
+        - Complexity analysis (30%)
+        - Failure patterns (30%)
+        
+        Args:
+            task_description: Natural language description
+            code_snippet: Optional code to analyze
+            domain: Optional explicit domain override
+        
+        Returns:
+            ModelDecision with selected model and reasoning
+        """
+        # 1. Analyze complexity (30%)
+        complexity = self.analyze_complexity(task_description, code_snippet)
+        if domain:
+            complexity.domain = domain  # Override if explicitly provided
+        
+        complexity_score, complexity_model = self.calculate_complexity_score(complexity)
+        
+        # 2. Check failure history (30%)
+        failure_score, escalate_model = self.calculate_failure_score(complexity.domain)
+        
+        # 3. Get Meta-Supervisor recommendation (40%)
+        meta_score = 0.5  # Default if no meta data
+        meta_model = None
+        
+        if self.meta_supervisor:
+            recommended = self.meta_supervisor._get_recommended_model(complexity.domain)
+            if recommended:
+                meta_model = recommended
+                # Get success rate for this model
+                bias = self.meta_supervisor.get_model_bias(complexity.domain, recommended)
+                if bias:
+                    meta_score = bias.success_rate * bias.confidence
+        
+        # 4. Weighted combination: 0.40·Meta + 0.30·Complexity + 0.30·Failure
+        weighted_meta = 0.40 * meta_score
+        weighted_complexity = 0.30 * complexity_score
+        weighted_failure = 0.30 * failure_score
+        
+        final_score = weighted_meta + weighted_complexity + weighted_failure
+        
+        # 5. Decision logic
+        if escalate_model and failure_score > 0.5:
+            # Strong signal to escalate due to failures
+            selected_model = escalate_model
+            reasoning = f"Escalation due to {len(self.failure_history.get(complexity.domain, []))} failures"
+        elif meta_model and meta_score > 0.7:
+            # Strong historical signal
+            selected_model = meta_model
+            reasoning = f"Meta-Supervisor recommendation (success rate: {meta_score:.1%})"
+        else:
+            # Use complexity-based recommendation
+            selected_model = complexity_model
+            reasoning = f"Complexity-based selection ({complexity.complexity_level} {complexity.domain})"
+        
+        # 6. Build escalation path (Stop-Loss: 2 failures → escalate)
+        domain_key = f"{complexity.domain}_{complexity.complexity_level}"
+        if domain_key not in self.DOMAIN_ROUTING:
+            domain_key = complexity.domain
+        if domain_key not in self.DOMAIN_ROUTING:
+            domain_key = 'generic'
+        
+        escalation_path = self.DOMAIN_ROUTING[domain_key].copy()
+        
+        # Remove failed models from escalation path
+        if complexity.domain in self.failure_history:
+            failed = self.failure_history[complexity.domain]
+            escalation_path = [m for m in escalation_path if m not in failed]
+        
+        # Ensure selected model is first in path
+        if selected_model in escalation_path:
+            escalation_path.remove(selected_model)
+        escalation_path.insert(0, selected_model)
+        
+        return ModelDecision(
+            selected_model=selected_model,
+            confidence=final_score,
+            meta_score=meta_score,  # RAW score, not weighted
+            complexity_score=complexity_score,  # RAW score, not weighted
+            failure_score=failure_score,  # RAW score, not weighted
+            reasoning=reasoning,
+            escalation_path=escalation_path
+        )
+    
+    def record_failure(self, domain: str, model: str) -> None:
+        """
+        Record a model failure for Stop-Loss tracking.
+        
+        Args:
+            domain: Task domain
+            model: Model that failed
+        """
+        if domain not in self.failure_history:
+            self.failure_history[domain] = []
+        
+        self.failure_history[domain].append(model)
+        
+        # Stop-Loss: Keep only last 2 failures
+        if len(self.failure_history[domain]) > 2:
+            self.failure_history[domain] = self.failure_history[domain][-2:]
+        
+        print(f"[HybridDecision] ⚠ Recorded failure: {domain} / {model}")
+    
+    def clear_failures(self, domain: str) -> None:
+        """
+        Clear failure history for a domain (e.g., after success).
+        
+        Args:
+            domain: Task domain to clear
+        """
+        if domain in self.failure_history:
+            del self.failure_history[domain]
+            print(f"[HybridDecision] ✓ Cleared failure history for {domain}")
+
+
+# Example usage / testing
+if __name__ == "__main__":
+    print("="*60)
+    print("HYBRID DECISION LOGIC TEST")
+    print("="*60)
+    
+    # Test without Meta-Supervisor
+    decision_engine = HybridDecision()
+    
+    # Test 1: Simple CUDA task
+    print("\n--- TEST 1: Simple CUDA Task ---")
+    decision = decision_engine.decide_model(
+        task_description="Implement vector addition kernel with cudaMalloc",
+        code_snippet="__global__ void vectorAdd(float* a, float* b, float* c)"
+    )
+    print(f"Selected Model: {decision.selected_model}")
+    print(f"Confidence: {decision.confidence:.3f}")
+    print(f"Reasoning: {decision.reasoning}")
+    print(f"Escalation Path: {decision.escalation_path[:3]}")
+    
+    # Test 2: Complex CUDA task
+    print("\n--- TEST 2: Complex CUDA Task ---")
+    decision = decision_engine.decide_model(
+        task_description="Implement FFT-based convolution with cufft and multiple streams",
+        code_snippet="cufftPlan1d cuFFT multi-kernel async"
+    )
+    print(f"Selected Model: {decision.selected_model}")
+    print(f"Confidence: {decision.confidence:.3f}")
+    print(f"Reasoning: {decision.reasoning}")
+    print(f"Escalation Path: {decision.escalation_path[:3]}")
+    
+    # Test 3: Failure escalation
+    print("\n--- TEST 3: Failure Escalation ---")
+    decision_engine.record_failure('cuda', 'deepseek-coder-v2:16b')
+    decision_engine.record_failure('cuda', 'qwen2.5-coder:32b')
+    
+    decision = decision_engine.decide_model(
+        task_description="Fix CUDA kernel compilation error",
+        domain='cuda'
+    )
+    print(f"Selected Model: {decision.selected_model}")
+    print(f"Confidence: {decision.confidence:.3f}")
+    print(f"Failure Score: {decision.failure_score:.3f}")
+    print(f"Reasoning: {decision.reasoning}")
+    print(f"Escalation Path: {decision.escalation_path[:3]}")
+    
+    # Test 4: ASIO task
+    print("\n--- TEST 4: ASIO Task ---")
+    decision = decision_engine.decide_model(
+        task_description="Implement ASIO bufferSwitch callback with low latency",
+        code_snippet="ASIOCallbacks callbacks; bufferSwitch()"
+    )
+    print(f"Selected Model: {decision.selected_model}")
+    print(f"Confidence: {decision.confidence:.3f}")
+    print(f"Reasoning: {decision.reasoning}")
+    
+    print("\n" + "="*60)

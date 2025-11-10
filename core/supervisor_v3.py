@@ -1,14 +1,23 @@
 """
-KISYSTEM Supervisor V3 - Complete Orchestration
+KISYSTEM Supervisor V3 - Complete Orchestration with Phase 7 Optimization
 Build-Test-Fix Loop with Smart Routing, Auto-Dependencies & Learning
 
+Phase 7 Features:
+- Meta-Supervisor: Data-driven task prioritization
+- Hybrid Decision Logic: 40% Meta + 30% Complexity + 30% Failure
+- 7-Model-Routing with domain-specific escalation
+- Stop-Loss: 2 failures → escalate
+- Two-Tier-Profiling support (Tier1: 100ms, Tier2: 1000ms)
+- Cost-Aware Queue (ROI-based scheduling)
+
 Author: Jörg Bohne
-Date: 2025-11-06
-Version: 3.0
+Date: 2025-11-10
+Version: 3.1 (Phase 7)
 """
 
 import asyncio
 import sys
+import json
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -19,6 +28,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 from model_selector import ModelSelector
 from workflow_engine import WorkflowEngine, WorkflowConfig, SecurityLevel
 
+# Phase 7 imports
+try:
+    from meta_supervisor import MetaSupervisor
+    from hybrid_decision import HybridDecision
+    PHASE7_AVAILABLE = True
+except ImportError:
+    PHASE7_AVAILABLE = False
+    print("[Supervisor V3] ⚠ Phase 7 modules not available - using Phase 6 mode")
+
 
 class SupervisorV3:
     """
@@ -26,11 +44,17 @@ class SupervisorV3:
     
     Features:
     - Complete Build-Test-Fix Loop
-    - Smart Model Routing (3-tier)
+    - Smart Model Routing (3-tier or 7-tier with Phase 7)
     - Auto-Dependency Management
     - Learning from failures
     - SearchAgent trigger on repeated failures
     - Max iteration protection
+    
+    Phase 7 Features:
+    - Meta-Supervisor for data-driven prioritization
+    - Hybrid Decision Logic (Meta + Complexity + Failure)
+    - 7-Model-Routing with escalation paths
+    - Stop-Loss mechanism (2 failures → escalate)
     """
     
     def __init__(
@@ -38,7 +62,8 @@ class SupervisorV3:
         learning_module=None,
         search_agent=None,
         max_iterations: int = 5,
-        workspace: str = "D:/AGENT_MEMORY"
+        workspace: str = "D:/AGENT_MEMORY",
+        optimization_config_path: Optional[str] = None
     ):
         """
         Initialize Supervisor V3
@@ -48,6 +73,7 @@ class SupervisorV3:
             search_agent: Optional search agent for web research
             max_iterations: Max Build-Test-Fix iterations
             workspace: Workspace directory for output files
+            optimization_config_path: Path to optimization_config.json (Phase 7)
         """
         
         self.learning = learning_module
@@ -58,8 +84,48 @@ class SupervisorV3:
         # Create workspace
         self.workspace.mkdir(parents=True, exist_ok=True)
         
-        # Model selector for all agents
+        # Phase 7: Load optimization config
+        self.phase7_enabled = False
+        self.optimization_config = None
+        self.meta_supervisor = None
+        self.hybrid_decision = None
+        
+        if optimization_config_path is None:
+            # Default path
+            optimization_config_path = Path(__file__).parent.parent / "config" / "optimization_config.json"
+        else:
+            optimization_config_path = Path(optimization_config_path)
+        
+        if PHASE7_AVAILABLE and optimization_config_path.exists():
+            try:
+                self.optimization_config = self._load_optimization_config(optimization_config_path)
+                
+                if self.optimization_config.get('meta_supervisor', {}).get('enabled', False):
+                    # Initialize Meta-Supervisor
+                    learning_log_path = Path(self.optimization_config['meta_supervisor']['learning_log_path'])
+                    if learning_log_path.exists():
+                        self.meta_supervisor = MetaSupervisor(learning_log_path)
+                        print("[Supervisor V3] ✓ Meta-Supervisor initialized")
+                    else:
+                        print(f"[Supervisor V3] ⚠ Learning log not found: {learning_log_path}")
+                
+                if self.optimization_config.get('hybrid_decision', {}).get('enabled', False):
+                    # Initialize Hybrid Decision Logic
+                    self.hybrid_decision = HybridDecision(meta_supervisor=self.meta_supervisor)
+                    print("[Supervisor V3] ✓ Hybrid Decision Logic initialized")
+                
+                self.phase7_enabled = True
+                print("[Supervisor V3] ✓ Phase 7 Optimization ENABLED")
+                
+            except Exception as e:
+                print(f"[Supervisor V3] ⚠ Failed to load Phase 7 config: {e}")
+                print("[Supervisor V3] Falling back to Phase 6 mode")
+        
+        # Fallback: Model selector for all agents (Phase 6 mode)
         self.model_selector = ModelSelector()
+        
+        if not self.phase7_enabled:
+            print("[Supervisor V3] Running in Phase 6 mode (ModelSelector)")
         
         # Workflow engine for dependencies
         self.workflow_engine = WorkflowEngine(
@@ -77,18 +143,128 @@ class SupervisorV3:
             "total_iterations": 0,
             "total_fixes": 0,
             "models_used": {},
-            "dependencies_installed": set()
+            "dependencies_installed": set(),
+            # Phase 7 stats
+            "phase7_enabled": self.phase7_enabled,
+            "hybrid_decisions": 0,
+            "model_escalations": 0,
+            "meta_supervisor_hits": 0,
+            "fallback_to_phase6": 0
         }
         
         print("[Supervisor V3] ✓ Initialized")
         print(f"[Supervisor V3] Workspace: {self.workspace}")
         print(f"[Supervisor V3] Max iterations: {max_iterations}")
+        print(f"[Supervisor V3] Phase 7: {'ENABLED' if self.phase7_enabled else 'DISABLED'}")
+    
+    def _load_optimization_config(self, config_path: Path) -> Dict:
+        """Load optimization config from JSON file."""
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            print(f"[Supervisor V3] ✓ Loaded optimization config: {config_path}")
+            return config
+        except Exception as e:
+            print(f"[Supervisor V3] ✗ Failed to load config: {e}")
+            return {}
+    
+    def _select_model_for_phase(
+        self,
+        phase: str,
+        task_description: str,
+        code_snippet: str = "",
+        domain: Optional[str] = None
+    ) -> str:
+        """
+        Select model for a phase using Hybrid Decision Logic (Phase 7) or ModelSelector (Phase 6).
+        
+        Args:
+            phase: Phase name ('build', 'test', 'fix')
+            task_description: Task description for complexity analysis
+            code_snippet: Optional code snippet
+            domain: Optional explicit domain
+        
+        Returns:
+            Model name
+        """
+        
+        # Phase 7: Use Hybrid Decision Logic
+        if self.phase7_enabled and self.hybrid_decision:
+            try:
+                decision = self.hybrid_decision.decide_model(
+                    task_description=task_description,
+                    code_snippet=code_snippet,
+                    domain=domain
+                )
+                
+                self.stats["hybrid_decisions"] += 1
+                
+                # Check if Meta-Supervisor contributed
+                if decision.meta_score > 0.0:
+                    self.stats["meta_supervisor_hits"] += 1
+                
+                print(f"[Supervisor V3] Phase 7 Model Selection:")
+                print(f"  Selected: {decision.selected_model}")
+                print(f"  Confidence: {decision.confidence:.3f} (weighted: 0.40*Meta + 0.30*Complexity + 0.30*Failure)")
+                print(f"  Reasoning: {decision.reasoning}")
+                print(f"  Raw Scores: Meta={decision.meta_score:.3f}, "
+                      f"Complexity={decision.complexity_score:.3f}, "
+                      f"Failure={decision.failure_score:.3f}")
+                
+                return decision.selected_model
+                
+            except Exception as e:
+                print(f"[Supervisor V3] ⚠ Phase 7 decision failed: {e}")
+                print("[Supervisor V3] Falling back to Phase 6 ModelSelector")
+                self.stats["fallback_to_phase6"] += 1
+        
+        # Phase 6: Use ModelSelector (Fallback)
+        model = self.model_selector.select_model(
+            task_type=phase,
+            domain=domain or "generic",
+            complexity="medium"
+        )
+        
+        print(f"[Supervisor V3] Phase 6 Model Selection: {model} (for {phase})")
+        
+        return model
+    
+    def _record_phase_outcome(
+        self,
+        phase: str,
+        model: str,
+        domain: str,
+        success: bool
+    ):
+        """
+        Record outcome of a phase for learning and failure tracking.
+        
+        Args:
+            phase: Phase name
+            model: Model used
+            domain: Task domain
+            success: Whether phase succeeded
+        """
+        
+        if not self.phase7_enabled or not self.hybrid_decision:
+            return
+        
+        if success:
+            # Clear failure history on success
+            self.hybrid_decision.clear_failures(domain)
+            print(f"[Supervisor V3] ✓ Success recorded: {domain} / {model}")
+        else:
+            # Record failure for Stop-Loss
+            self.hybrid_decision.record_failure(domain, model)
+            self.stats["model_escalations"] += 1
+            print(f"[Supervisor V3] ⚠ Failure recorded: {domain} / {model}")
     
     async def execute_task(
         self,
         task: str,
         language: str = "python",
-        context: Optional[Dict] = None
+        context: Optional[Dict] = None,
+        domain: Optional[str] = None
     ) -> Dict:
         """
         Execute complete task: Build → Test → Fix loop until success
@@ -97,6 +273,7 @@ class SupervisorV3:
             task: Task description
             language: Programming language
             context: Optional additional context
+            domain: Optional explicit domain (for Phase 7)
             
         Returns:
             Result dict with final_code, tests, iterations, status, etc.
@@ -107,6 +284,8 @@ class SupervisorV3:
         print("="*70)
         print(f"Task: {task}")
         print(f"Language: {language}")
+        print(f"Domain: {domain or 'auto-detect'}")
+        print(f"Phase 7: {'ENABLED' if self.phase7_enabled else 'DISABLED'}")
         print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("="*70 + "\n")
         
@@ -114,6 +293,7 @@ class SupervisorV3:
             "status": "pending",
             "task": task,
             "language": language,
+            "domain": domain,
             "final_code": None,
             "tests": None,
             "iterations": 0,
@@ -121,7 +301,8 @@ class SupervisorV3:
             "errors": [],
             "models_used": [],
             "dependencies_installed": [],
-            "timeline": []
+            "timeline": [],
+            "phase7_decisions": []
         }
         
         current_code = None
@@ -137,11 +318,24 @@ class SupervisorV3:
             iteration += 1
             result["iterations"] = iteration
             
-            build_result = await self._build_phase(task, language, context)
+            # Select model for build phase
+            build_model = self._select_model_for_phase(
+                phase='build',
+                task_description=task,
+                domain=domain
+            )
+            
+            build_result = await self._build_phase(
+                task,
+                language,
+                context,
+                model_override=build_model
+            )
             
             if build_result["status"] != "completed":
                 result["status"] = "failed"
                 result["errors"].append("Build phase failed")
+                self._record_phase_outcome('build', build_model, domain or 'generic', success=False)
                 return result
             
             current_code = build_result["code"]
@@ -154,6 +348,8 @@ class SupervisorV3:
                 "model": build_result["model_used"]
             })
             
+            self._record_phase_outcome('build', build_model, domain or 'generic', success=True)
+            
             print(f"[Supervisor V3] ✓ Build phase completed")
             print(f"[Supervisor V3] Code: {len(current_code)} characters")
             
@@ -162,11 +358,25 @@ class SupervisorV3:
             print(f"[Supervisor V3] PHASE 2: TEST")
             print(f"{'='*70}\n")
             
-            test_result = await self._test_phase(current_code, language, context)
+            # Select model for test phase
+            test_model = self._select_model_for_phase(
+                phase='test',
+                task_description=f"Generate tests for: {task}",
+                code_snippet=current_code[:500],
+                domain=domain
+            )
+            
+            test_result = await self._test_phase(
+                current_code,
+                language,
+                context,
+                model_override=test_model
+            )
             
             if test_result["status"] != "completed":
                 result["status"] = "failed"
                 result["errors"].append("Test generation failed")
+                self._record_phase_outcome('test', test_model, domain or 'generic', success=False)
                 return result
             
             current_tests = test_result["tests"]
@@ -178,6 +388,8 @@ class SupervisorV3:
                 "status": "success",
                 "model": test_result["model_used"]
             })
+            
+            self._record_phase_outcome('test', test_model, domain or 'generic', success=True)
             
             print(f"[Supervisor V3] ✓ Test phase completed")
             print(f"[Supervisor V3] Tests: {len(current_tests)} characters")
@@ -205,6 +417,9 @@ class SupervisorV3:
                 print(f"Iterations: {iteration}")
                 print(f"Models used: {', '.join(set(result['models_used']))}")
                 print(f"Dependencies: {len(set(result['dependencies_installed']))}")
+                if self.phase7_enabled:
+                    print(f"Phase 7 Decisions: {self.stats['hybrid_decisions']}")
+                    print(f"Meta-Supervisor Hits: {self.stats['meta_supervisor_hits']}")
                 print(f"{'='*70}\n")
                 
                 # Store in learning database
@@ -236,23 +451,33 @@ class SupervisorV3:
                         query=f"{language} {errors[0][:100]}"
                     )
                     context = context or {}
-                    context["search_results"] = search_results
+                    context['search_results'] = search_results
                 
-                # Fix phase
+                # Select model for fix phase
+                fix_model = self._select_model_for_phase(
+                    phase='fix',
+                    task_description=f"Fix error: {errors[0][:200]}",
+                    code_snippet=current_code[:500],
+                    domain=domain
+                )
+                
                 fix_result = await self._fix_phase(
                     current_code,
-                    errors[0],  # Fix first error
+                    errors[0],
                     language,
                     iteration,
-                    context
+                    context,
+                    model_override=fix_model
                 )
                 
                 if fix_result["status"] != "completed":
                     result["timeline"].append({
                         "phase": "fix",
                         "iteration": iteration,
-                        "status": "failed"
+                        "status": "failed",
+                        "model": fix_model
                     })
+                    self._record_phase_outcome('fix', fix_model, domain or 'generic', success=False)
                     continue
                 
                 current_code = fix_result["fixed_code"]
@@ -263,6 +488,8 @@ class SupervisorV3:
                     "status": "success",
                     "model": fix_result["model_used"]
                 })
+                
+                self._record_phase_outcome('fix', fix_model, domain or 'generic', success=True)
                 
                 # Re-validate
                 validation_result = await self._validate_phase(
@@ -328,7 +555,8 @@ class SupervisorV3:
         self,
         task: str,
         language: str,
-        context: Optional[Dict]
+        context: Optional[Dict],
+        model_override: Optional[str] = None
     ) -> Dict:
         """Execute build phase"""
         
@@ -337,20 +565,45 @@ class SupervisorV3:
         from builder_agent import BuilderAgent
         
         builder = BuilderAgent(learning_module=self.learning)
-        return await builder.build(task, language, context)
+        
+        # Override model if provided (Phase 7)
+        if model_override and hasattr(builder, 'model_selector'):
+            original_select = builder.model_selector.select_model
+            builder.model_selector.select_model = lambda *args, **kwargs: model_override
+        
+        result = await builder.build(task, language, context)
+        
+        # Ensure model_used is set
+        if 'model_used' not in result and model_override:
+            result['model_used'] = model_override
+        
+        return result
     
     async def _test_phase(
         self,
         code: str,
         language: str,
-        context: Optional[Dict]
+        context: Optional[Dict],
+        model_override: Optional[str] = None
     ) -> Dict:
         """Execute test phase"""
         
         from tester_agent import TesterAgent
         
         tester = TesterAgent(learning_module=self.learning)
-        return await tester.test(code, language, context=context)
+        
+        # Override model if provided (Phase 7)
+        if model_override and hasattr(tester, 'model_selector'):
+            original_select = tester.model_selector.select_model
+            tester.model_selector.select_model = lambda *args, **kwargs: model_override
+        
+        result = await tester.test(code, language, context=context)
+        
+        # Ensure model_used is set
+        if 'model_used' not in result and model_override:
+            result['model_used'] = model_override
+        
+        return result
     
     async def _validate_phase(
         self,
@@ -380,7 +633,8 @@ class SupervisorV3:
         error: str,
         language: str,
         iteration: int,
-        context: Optional[Dict]
+        context: Optional[Dict],
+        model_override: Optional[str] = None
     ) -> Dict:
         """Execute fix phase"""
         
@@ -391,12 +645,23 @@ class SupervisorV3:
             search_agent=self.search
         )
         
+        # Override model if provided (Phase 7)
+        if model_override and hasattr(fixer, 'model_selector'):
+            original_select = fixer.model_selector.select_model
+            fixer.model_selector.select_model = lambda *args, **kwargs: model_override
+        
         fix_context = {
             "failure_count": iteration - 1,  # 0-indexed
             **(context or {})
         }
         
-        return await fixer.fix(code, error, language, fix_context)
+        result = await fixer.fix(code, error, language, fix_context)
+        
+        # Ensure model_used is set
+        if 'model_used' not in result and model_override:
+            result['model_used'] = model_override
+        
+        return result
     
     async def _store_success(self, task: str, code: str, result: Dict):
         """Store successful result in learning database"""
@@ -412,7 +677,8 @@ class SupervisorV3:
                     "iterations": result["iterations"],
                     "fixes": result["fixes"],
                     "models": result["models_used"],
-                    "dependencies": list(set(result["dependencies_installed"]))
+                    "dependencies": list(set(result["dependencies_installed"])),
+                    "phase7_enabled": self.phase7_enabled
                 }
             )
             print("[Supervisor V3] ✓ Stored in learning database")
@@ -431,6 +697,36 @@ class SupervisorV3:
                 else 0.0
             )
         }
+    
+    def print_phase7_summary(self):
+        """Print Phase 7 statistics summary"""
+        
+        if not self.phase7_enabled:
+            print("[Supervisor V3] Phase 7 not enabled")
+            return
+        
+        print("\n" + "="*70)
+        print("PHASE 7 STATISTICS")
+        print("="*70)
+        print(f"Hybrid Decisions: {self.stats['hybrid_decisions']}")
+        print(f"Meta-Supervisor Hits: {self.stats['meta_supervisor_hits']}")
+        print(f"Model Escalations: {self.stats['model_escalations']}")
+        print(f"Fallback to Phase 6: {self.stats['fallback_to_phase6']}")
+        
+        if self.meta_supervisor:
+            print("\n--- META-SUPERVISOR STATUS ---")
+            print(f"Learning Entries: {len(self.meta_supervisor.learning_data)}")
+            print(f"Domains Tracked: {len(self.meta_supervisor.model_biases)}")
+            
+            top_priorities = self.meta_supervisor.get_top_priorities(top_n=3)
+            if top_priorities:
+                print("\n--- TOP 3 PRIORITY TASKS ---")
+                for i, priority in enumerate(top_priorities, 1):
+                    print(f"{i}. {priority.domain} / {priority.model}")
+                    print(f"   Priority: {priority.priority:.3f}")
+                    print(f"   Success Rate: {priority.success_rate:.1%}")
+        
+        print("="*70 + "\n")
 
 
 # ============================================================================
@@ -476,6 +772,9 @@ async def test_supervisor():
     for key, value in stats.items():
         print(f"  {key}: {value}")
     print("="*70 + "\n")
+    
+    # Phase 7 summary
+    supervisor.print_phase7_summary()
 
 
 if __name__ == "__main__":

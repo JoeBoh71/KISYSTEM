@@ -11,8 +11,8 @@ import sys
 from pathlib import Path
 
 # Add paths
-sys.path.insert(0, str(Path(__file__).parent / 'core'))
-sys.path.insert(0, str(Path(__file__).parent / 'agents'))
+sys.path.insert(0, str(Path(__file__).parent.parent / 'core'))
+sys.path.insert(0, str(Path(__file__).parent.parent / 'agents'))
 
 
 async def test_1_direct_fixer():

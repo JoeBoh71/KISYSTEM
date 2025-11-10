@@ -1,0 +1,37 @@
+═══ CLAUDE: FETCH THESE IMMEDIATELY ═══
+
+Repository & Instructions:
+1. https://github.com/JoeBoh71/KISYSTEM
+2. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/CLAUDE_INSTRUCTIONS.md
+
+Core Files (10):
+3. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/core/model_selector.py
+4. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/core/supervisor_v3_optimization.py
+5. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/core/supervisor_v3.py
+6. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/core/learning_module_v2.py
+7. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/core/confidence_scorer.py
+8. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/core/context_tracker.py
+9. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/core/performance_parser.py
+10. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/core/ollama_client.py
+11. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/core/workflow_engine.py
+12. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/core/code_extractor.py
+
+Agent Files (8):
+13. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/agents/builder_agent.py
+14. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/agents/fixer_agent.py
+15. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/agents/tester_agent.py
+16. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/agents/cuda_profiler_agent.py
+17. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/agents/search_agent_v2.py
+18. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/agents/review_agent_v2.py
+19. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/agents/docs_agent_v2.py
+20. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/agents/hardware_test_agent.py
+
+Config & Tests (7):
+21. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/config/kisystem_config.json
+22. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/security/security_module.py
+23. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/test_system.py
+24. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/test_phase6_optimization.py
+25. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/README.md
+26. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/QUICKSTART.md
+27. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/CHANGES.md
+28. https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/INSTALL.md
