@@ -1,8 +1,9 @@
 # CLAUDE INSTRUCTIONS - KISYSTEM
 
-**Last Updated:** 2025-11-08 07:00 UTC  
-**Session:** RUN 31 (V3.0 Production + All Fixes Applied)  
-**Status:** ✅ Production Ready - All Systems Operational
+**Last Updated:** 2025-11-10 20:30 UTC
+**Session:** RUN 32
+**Status:** Phase 7 Implementation - Meta-Supervisor + 7-Model-Routing
+
 ---
 
 ## 🏗️ PROJECT STRUCTURE
@@ -12,46 +13,46 @@
 ```
 C:\KISYSTEM\
 ├── core/
-│   ├── model_selector.py           [v2 - WORKING]
-│   ├── error_handler.py            [v3 - NEW! - WORKING] ✨
-│   ├── performance_parser.py       [v2 - WORKING]
-│   ├── learning_module_v2.py       [v2 - WORKING]
+│   ├── model_selector.py           [v2 - Fixed 2025-11-07 - WORKING]
+│   ├── performance_parser.py       [v2 - Fixed 2025-11-07 - WORKING]
+│   ├── learning_module_v2.py       [v1 - WORKING]
 │   ├── confidence_scorer.py        [v1 - WORKING]
 │   ├── context_tracker.py          [v1 - WORKING]
 │   ├── ollama_client.py            [v1 - WORKING]
 │   ├── supervisor_v3.py            [v1 - WORKING]
 │   ├── supervisor_v3_optimization.py [v1 - WORKING]
 │   ├── workflow_engine.py          [v1 - WORKING]
-│   └── code_extractor.py           [v1 - WORKING]
+│   ├── code_extractor.py           [v1 - WORKING]
+│   ├── error_categorizer.py        [v1 - Phase 7 - SEPARATE MODULE]
+│   ├── meta_supervisor.py          [v1 - Phase 7 - TO CREATE]
+│   └── hybrid_decision.py          [v1 - Phase 7 - TO CREATE]
 │
 ├── agents/
-│   ├── builder_agent.py            [v2 - WORKING]
-│   ├── fixer_agent_v3.py           [v3 - NEW! - WORKING] ✨
-│   ├── fixer_agent.py              [v2 - DEPRECATED - use V3]
-│   ├── tester_agent.py             [v2 - WORKING]
-│   ├── search_agent_v2.py          [v2 - WORKING]
+│   ├── builder_agent.py            [v2 - Fixed 2025-11-07 - WORKING]
+│   ├── fixer_agent.py              [v2 - Fixed 2025-11-07 - WORKING]
+│   ├── tester_agent.py             [v2 - Fixed 2025-11-07 - WORKING]
+│   ├── search_agent_v2.py          [v2 - Fixed 2025-11-07 - WORKING]
 │   ├── review_agent_v2.py          [v1 - WORKING]
 │   ├── docs_agent_v2.py            [v1 - WORKING]
-│   ├── cuda_profiler_agent.py      [v2 - WORKING]
+│   ├── cuda_profiler_agent.py      [v2 - Fixed 2025-11-07 - PARTIAL]
 │   └── hardware_test_agent.py      [v1 - WORKING]
 │
 ├── config/
-│   └── kisystem_config.json
+│   ├── kisystem_config.json
+│   └── optimization_config.json    [Phase 7 - TO CREATE]
 │
 ├── security/
 │   └── security_module.py
 │
 ├── tests/
 │   ├── test_system.py
-│   ├── test_hybrid_handler.py      [v3 - NEW! - 4/4 PASSED] ✨
 │   ├── test_phase6_optimization.py
-│   └── ...
+│   └── test_phase7_meta.py         [Phase 7 - TO CREATE]
 │
 └── docs/
     ├── README.md
     ├── QUICKSTART.md
-    ├── KISYSTEM_COMPLETE.txt       [v3.0 - Complete Documentation]
-    └── ...
+    └── KISYSTEM_Optimization_Spec_v7.md
 ```
 
 ---
@@ -179,18 +180,20 @@ GPU-accelerated professional audio workstation rivaling Trinnov Altitude 32, usi
 
 ## 🤖 AVAILABLE OLLAMA MODELS (7 Total)
 
-| Model | Size | Use Case | Avg Time | Status |
-|-------|------|----------|----------|--------|
-| `mistral:7b` | 4.4 GB | Documentation, Quick tasks | ~30s | ✅ |
-| `llama3.1:8b` | 4.9 GB | Code Review, Simple tasks | ~30s | ⚠️ Quality issues CUDA |
-| `phi4:latest` | 9.1 GB | Testing | ~2min | ✅ |
-| `deepseek-coder-v2:16b` | 8.9 GB | Code Gen (medium/complex) | ~2min | ✅ Preferred |
-| `qwen2.5:32b` | 19 GB | General reasoning | ~7min | ✅ |
-| `qwen2.5-coder:32b` | 19 GB | Complex CUDA/C++ | ~7min | ✅ |
-| `deepseek-r1:32b` | 19 GB | Debugging, Reasoning | ~7min | ✅ |
+| Rank | Model | Role | Timeout | Status |
+|------|-------|------|---------|--------|
+| 1 | `llama3.1:8b` | Trivial/Boilerplate | 180s | ⚠️ NO CUDA |
+| 2 | `mistral:7b` | Generic/Quick | 240s | ✅ |
+| 3 | `phi4:latest` | Tests/Specs/Docs | 240s | ✅ |
+| 4 | `deepseek-coder-v2:16b` | Mid-Coding C++/CUDA | 300s | ✅ Preferred |
+| 5 | `qwen2.5:32b` | Reasoning/Architecture | 900s | ✅ |
+| 6 | `qwen2.5-coder:32b` | Complex CUDA/Optimization | 1800s | ✅ |
+| 7 | `deepseek-r1:32b` | Deep Fixes/Reasoning | 1800s | ✅ |
 
-**Ollama Location:** `C:\KISYSTEM\models`  
+**Ollama Location:** `C:\KISYSTEM\models`
 **Ollama Version:** 0.12.9
+
+**CRITICAL:** `llama3.1:8b` generates broken CUDA code - DO NOT use for CUDA tasks!
 
 ---
 
@@ -268,187 +271,310 @@ GPU-accelerated professional audio workstation rivaling Trinnov Altitude 32, usi
 
 ---
 
-## ✅ V3.0 FEATURES - HYBRID ERROR HANDLER (RUN 30)
+## ✅ COMPLETED FIXES (2025-11-07)
 
-### **Status: Production Ready - All Tests Passing (4/4)** ✨
+### Session 1 (Afternoon)
+1. **Learning Module Initialization** - Added `ensure_tables()` to all 5 agents
+2. **FixerAgent CUDA Template** - Prevents include amnesia in iteration 2+
+3. **Cache Clear Script** - `CLEAR_AND_RUN.ps1` for clean testing
+4. **Git Repository Setup** - Public repo created and synced
 
-**Major Components Added:**
-
-### 1. **HybridErrorHandler** (`core/error_handler.py`, 603 lines)
-- ✅ Intelligent error categorization (4 types)
-- ✅ Confidence-based decision making
-- ✅ Model escalation chains
-- ✅ Smart search triggering
-- ✅ Statistics tracking
-
-**Error Categories:**
-```python
-COMPILATION  → max_retries=1  (Strict)
-RUNTIME      → max_retries=2  (Medium)
-PERFORMANCE  → max_retries=4  (Flexible)
-LOGIC        → max_retries=3  (Medium-Flexible)
-```
-
-**Decision Logic:**
-```python
-confidence > 85%  → USE_CACHE (high confidence solution)
-confidence 60-85% → RETRY_WITH_VARIATION
-attempts < limit  → ESCALATE (bigger model)
-last resort       → SEARCH (web lookup)
-```
-
-### 2. **FixerAgentV3** (`agents/fixer_agent_v3.py`, 671 lines)
-- ✅ Integrated HybridErrorHandler
-- ✅ Removed hardcoded retry logic
-- ✅ Category-aware error handling
-- ✅ Confidence-based caching
-- ✅ Performance optimization method
-
-### 3. **PerformanceParser** (`core/performance_parser.py`, 300 lines)
-- ✅ Parse nvprof/nsys output
-- ✅ Calculate performance score (0-100)
-- ✅ Identify bottlenecks (memory/compute/occupancy)
-- ✅ Generate optimization suggestions
-
-### 4. **Comprehensive Tests** (`tests/test_hybrid_handler.py`, 364 lines)
-- ✅ Error categorization tests (6 cases)
-- ✅ Confidence decision tests (2 cases)
-- ✅ Direct Fixer V3 test (1 integration test)
-- ✅ Full Supervisor optimization loop (1 E2E test)
-- ✅ **Result: 4/4 tests PASSED (100%)**
-
-**Test Output:**
-```
-======================================================================
-FINAL RESULTS:
-======================================================================
-✓ Error Categorization: PASSED
-✓ Confidence Decisions: PASSED
-✓ Direct Fixer V3: PASSED
-✓ Supervisor with Iterations: PASSED
-======================================================================
-Total: 4/4 tests passed (100%)
-======================================================================
-
-✅ ALL TESTS PASSED - HYBRID HANDLER FULLY FUNCTIONAL!
-```
-
----
-
-## 🔮 FUTURE FEATURES - IN DISCUSSION
-
-### **Hardware Protocol Discovery Agent** (Discussed 2025-11-08)
-
-**Concept:** Auto-discover and generate communication code for audio hardware
-
-**Use Case:** 
-- M-32 AD/DA converters (192.168.10.2, 192.168.10.3)
-- Midas M32 mixer
-- Future hardware additions
-
-**Approaches Under Consideration:**
-
-#### **Option A: Manual Research → Agent Implementation** (Pragmatic, Fast)
-- Research protocols manually (datasheets, Wireshark, forums)
-- Create template agents per device type
-- KISYSTEM generates device-specific code from templates
-- **Pro:** Quick, reliable, works immediately
-- **Con:** Manual initial work per device type
-
-#### **Option B: Discovery Agent with Sniffer-Tools** (Advanced, Complex)
-- ProtocolDiscoveryAgent with nmap, Wireshark integration
-- Automatic protocol detection (HTTP/REST, OSC, MIDI, Binary)
-- Pattern recognition for command structures
-- **Pro:** Fully autonomous, future-proof
-- **Con:** 2+ weeks development, requires ML/pattern recognition
-
-#### **Option C: Hybrid Approach** (Best of Both)
-- Start with Option A for immediate needs
-- Develop Option B as separate long-term component
-- **Pro:** Pragmatic now, advanced later
-- **Con:** Two-phase implementation
-
-**Status:** Concept phase - awaiting decision on approach
-
-**Files:** No implementation yet - design discussion only
+### Session 2 (Evening)
+5. **Smart Model Selector** - CUDA complexity detection (Simple/Medium/Complex)
+6. **PerformanceParser Creation** - GPU time extraction, baseline scoring
+7. **PerformanceParser.parse_output()** - Method for CUDAProfiler compatibility
+8. **PerformanceMetrics Dataclass** - Return type for parse_output()
+9. **CUDAProfiler Import Fix** - Corrected path: `from core.performance_parser`
+10. **Unicode Encoding Fix** - UTF-8 for subprocess output (attempted)
+11. **Error Categorizer** - Classification for hybrid error handling (created, not yet installed)
 
 ---
 
 ## ⚠️ KNOWN ISSUES
 
-### **✅ ALL CRITICAL ISSUES RESOLVED!**
+### Critical
+1. **nsys Profiling Fails** - CUDAProfiler can't extract performance metrics
+   - Compilation: ✅ Works
+   - Execution: ✅ Works
+   - Profiling: ❌ nsys output not parsed correctly
+   - Impact: Optimization loop stops after iteration 0
+   - **Status:** Two-Tier-Profiling (Phase 7) addresses this
 
-**Fixed in RUN 31 (2025-11-09):**
-1. ✅ Supervisor profiler import - Path correction applied
-2. ✅ V3.0 critical files committed to GitHub  
-3. ✅ test_hybrid_handler.py paths fixed - 4/4 tests passing
-4. ✅ Optimization loop functional - Hardware-in-loop active
+2. **llama3.1:8b Quality Issues** - Generates broken CUDA code
+   - Uses shared memory incorrectly
+   - Vector addition logic wrong
+   - **NEVER use for CUDA tasks**
+   - Status: Documented in 7-Model-Routing
 
-**Previous Issues Resolved in V3.0:**
-- ✅ Hardcoded retry logic → Hybrid Handler
-- ✅ No error categorization → 4 categories implemented
-- ✅ No caching → Confidence-based cache functional
-- ✅ Fixed escalation → Smart chains working
-- ✅ Late search → Priority-based triggering operational
+### Minor
+3. **Unicode Decode Error** - Thread exception in subprocess output
+   - Workaround: Encoding fix attempted, not verified
+   - Non-blocking but creates noise in logs
 
-**Current Status:** No known critical issues. System operational at 100%.
+---
+
+## 🎯 PHASE 7: META-SUPERVISOR & 7-MODEL-ROUTING
+
+### Overview
+Phase 7 transforms KISYSTEM into a **proactive, learning-optimized build system** with:
+- **Meta-Supervisor:** Data-driven prioritization from learning_module_v2
+- **7-Model-Routing:** Domain-specific escalation chains with Stop-Loss
+- **Hybrid Decision Logic:** Weighted model selection (Meta-Bias + Complexity + Failure-State)
+- **Two-Tier-Profiling:** Microbench (Tier 0) + Full-Profile (Tier 1)
+- **Cost-Aware Queue:** ROI-based task prioritization
+- **Async I/O:** Non-blocking Build/Test, serial Profiler
+
+### Architecture Components
+
+#### 1. Error Categorizer
+**Status:** Separate module (Single-Responsibility)  
+**Location:** `core/error_categorizer.py`
+
+**Output Format:**
+```python
+{
+    'error_type': str,      # COMPILATION / RUNTIME / PERFORMANCE / LOGIC
+    'phase': str,           # BUILD / TEST / PROFILE
+    'severity': int,        # 1-5 (1=minor, 5=critical)
+    'recoverable': bool,    # Retry possible?
+    'hint': str            # Recovery suggestion
+}
+```
+
+**Usage:**
+- **Meta-Supervisor:** Aggregates fail-rates by domain/error_type for Priority/Recency
+- **Supervisor:** Uses `recoverable/severity` for Retry/Stop-Loss/Abort decisions
+- **Advantage:** Exchangeable, no coupling to Meta formulas
+
+#### 2. Meta-Supervisor
+**Status:** TO CREATE  
+**Location:** `core/meta_supervisor.py`  
+**Mode:** Read-only analysis of `learning_module_v2` statistics
+
+**Functions:**
+```python
+next_priorities() -> List[str]
+recommend_model_bias() -> Dict[str, str]
+```
+
+**Priority Formula:**
+```
+P(d) = 0.5(1 - sr) + 0.2/(1 + t) + 0.2·min(1, c/20) + 0.1·R
+
+Where:
+  sr = Success rate
+  t  = Average solution time
+  c  = Run count
+  R  = RecencyBoost (+0.1 new error <3d, -0.1 success <1d)
+```
+
+**Model Bias:**
+```python
+best_model(d) = argmax_m(sr_m,d) 
+  if sr >= 0.65 and count >= 5
+```
+Returns preferred start-model per domain.
+
+**Aging:**
+```python
+weight = exp(-age / 30)  # Older runs decay exponentially
+```
+
+#### 3. Hybrid Decision Logic
+**Status:** TO CREATE  
+**Location:** `core/hybrid_decision.py`
+
+**Purpose:** Weighted model selection (parallel to 7-Model-Routing)
+
+**Formula:**
+```
+Final_Model = 0.40·Meta_Bias + 0.30·Complexity + 0.30·Failure_State
+
+Where:
+  Meta_Bias      = Meta-Supervisor recommendation (evidence-based)
+  Complexity     = CUDA/C++ complexity detector
+  Failure_State  = Current escalation level / retry count
+```
+
+**Logic:**
+- **Routing:** Provides deterministic baseline (see table below)
+- **Hybrid:** Overrides only with sufficient evidence
+- **Result:** Evidence-based start, fallback to routing defaults
+
+#### 4. 7-Model-Routing with Stop-Loss
+
+**Domain Routing Table:**
+
+| Domain | Start Model | Escalation Chain (Stop-Loss = 2 Fails) |
+|--------|-------------|----------------------------------------|
+| **CUDA / Kernel** | `qwen2.5-coder:32b` | → `deepseek-r1:32b` → `deepseek-coder-v2:16b` → `qwen2.5:32b` |
+| **C++ / System** | `deepseek-coder-v2:16b` | → `qwen2.5-coder:32b` → `deepseek-r1:32b` |
+| **Audio / DSP** | `deepseek-coder-v2:16b` | → `qwen2.5-coder:32b` → `deepseek-r1:32b` |
+| **Tests / Docs** | `phi4:latest` | → `mistral:7b` → `llama3.1:8b` → `qwen2.5:32b` |
+| **Planning / Refactor** | `qwen2.5:32b` | → `deepseek-r1:32b` → `mistral:7b` |
+
+**Rules:**
+- **Stop-Loss:** 2 consecutive failures per model → escalate
+- **Success-Matrix Override:** If `success_rate >= 0.65` AND `count >= 5`, use Meta-Supervisor bias
+- **No Downgrade:** Escalation is upward-only (never fall back to weaker models)
+- **Final Fallback:** After last model → Manual intervention / SearchAgent web lookup
+
+#### 5. OptimizationConfig Parameters
+
+**File:** `config/optimization_config.json`
+
+```json
+{
+  "max_optimization_iterations": 10,     // [1-50] Max Fix/Optimize loops
+  "target_score": 80,                     // [0-100] PerformanceParser target
+  "retry_build": 2,                       // Build phase retries
+  "retry_test": 1,                        // Test phase retries
+  "retry_profile": 1,                     // Profile phase retries
+  "stoploss_per_model": 2,                // [1-5] Error limit per model
+  "max_concurrent_builds": 3,             // [1-8] Parallel build semaphore
+  "enable_meta_supervisor": true,         // Meta-Supervisor active?
+  "enable_two_tier_profiling": true,      // Microbench + Full-profile
+  "enable_async_io": true                 // Non-blocking Build/Test
+}
+```
+
+#### 6. Two-Tier-Profiling Strategy
+
+**Problem:** nsys profiling is slow, blocks optimization loop
+
+**Solution:**
+- **Tier 0 (Microbench):** Quick execution-time measurement, no nsys
+  - Fast feedback (<5s)
+  - Detects major regressions
+  - No GPU metrics
+  
+- **Tier 1 (Full-Profile):** Complete nsys profiling
+  - Only when Tier 0 shows significant activity
+  - Full GPU metrics (kernel time, memory, occupancy)
+  - ~40-55% time savings vs always-profile
+
+**Trigger Logic:**
+```python
+if iteration == 0 or score_change > threshold:
+    tier = 1  # Full profile
+else:
+    tier = 0  # Microbench only
+```
+
+#### 7. Cost-Aware Queue
+
+**Formula:**
+```
+Priority_Eff = Priority_Score / ETA(Model, Domain)
+```
+
+**Purpose:** Tasks with highest ROI first
+
+**Example:**
+- Task A: Priority=90, ETA=300s → Eff=0.30
+- Task B: Priority=80, ETA=180s → Eff=0.44
+- **Result:** Execute Task B first (better ROI)
+
+#### 8. Async I/O Strategy
+
+**Timeouts:**
+- Build: 300s
+- Test: 120s
+- Profile: 900s
+
+**Parallelization:**
+- **nvcc / Tests:** Non-blocking, up to `max_concurrent_builds`
+- **Profiler:** Serial (nsys doesn't parallelize well)
+- **Queue:** Cost-aware priority scheduling
+
+---
+
+## 📊 SCORING AND LOGGING
+
+### Score Range
+- **Scale:** 0-100
+- **Typical:** 80-90
+- **Excellent:** >95 (only after tuning)
+
+### Learning Log Format
+```python
+{
+    'run_id': str,
+    'domain': str,
+    'model': str,
+    'iteration': int,
+    'score_final': int,
+    'outcome': str,          # SUCCESS / FAIL / TIMEOUT
+    'phase': str,            # BUILD / TEST / PROFILE
+    'reason': str,           # Error/completion reason
+    'timings': {
+        'build': float,
+        'test': float,
+        'profile': float
+    },
+    'timestamp': datetime
+}
+```
+
+**Logged on:** Every exit (success, fail, timeout)
 
 ---
 
 ## 🔧 CONVENTIONS & PATTERNS
 
-### Model Selection Strategy
+### Model Selection Strategy (Phase 7)
 
-**By Task Type:**
-- Code Generation (simple): `llama3.1:8b` (30s) - ⚠️ NOT for CUDA
-- Code Generation (medium): `deepseek-coder-v2:16b` (2min)
-- Code Generation (complex): `qwen2.5-coder:32b` (7min)
-- Debugging/Reasoning: `deepseek-r1:32b` (7min)
-- Testing: `phi4` (2min)
-- Documentation: `mistral:7b` (30s)
-- General Reasoning: `qwen2.5:32b` (7min)
-
-**By Language/Domain:**
-- **CUDA Simple** (vector ops): `deepseek-coder-v2:16b`
-- **CUDA Medium** (shared mem): `deepseek-coder-v2:16b`
-- **CUDA Complex** (FFT, multi-kernel): `qwen2.5-coder:32b`
-- **C++ ASIO**: `deepseek-coder-v2:16b` or `qwen2.5-coder:32b`
-- **Audio DSP**: `deepseek-coder-v2:16b` (simple) or `qwen2.5-coder:32b` (complex)
-
-**Model Escalation Chains (V3.0):**
-```python
-Builder:  mistral:7b → deepseek-coder-v2:16b → qwen2.5-coder:32b
-Fixer:    deepseek-coder-v2:16b → qwen2.5-coder:32b → deepseek-r1:32b
-Tester:   phi4:latest → deepseek-coder-v2:16b
+**Primary Decision:** Hybrid Decision Logic
 ```
+Final = 0.40·Meta + 0.30·Complexity + 0.30·Failure
+```
+
+**Fallback:** Domain Routing Table (see Section above)
+
+**Complexity Detection:**
+- **CUDA Simple:** Vector ops, basic kernels → `deepseek-coder-v2:16b`
+- **CUDA Medium:** Shared memory, reduction → `deepseek-coder-v2:16b`
+- **CUDA Complex:** FFT, multi-kernel, optimization → `qwen2.5-coder:32b`
+- **C++ ASIO:** `deepseek-coder-v2:16b` or `qwen2.5-coder:32b`
+- **Audio DSP:** `deepseek-coder-v2:16b` (simple) or `qwen2.5-coder:32b` (complex)
+
+**Language/Domain Keywords:**
+- **CUDA:** `__global__`, `__shared__`, `cudaMalloc`, `<<<>>>`, `blockIdx`
+- **Audio DSP:** `STFT`, `FFT`, `filter`, `convolution`, `sample_rate`
+- **ASIO:** `ASIOCallbacks`, `bufferSwitch`, `ASIOSamples`
 
 **AVOID:**
 - `llama3.1:8b` for CUDA code generation (quality issues)
 
-### Error Handling Strategy: HYBRID (V3.0)
+### Error Handling Strategy: HYBRID (Phase 7)
 
-**Philosophy:** Balance between learning efficiency and practical flexibility
+**Philosophy:** Balance learning efficiency with practical flexibility
 
 **Decision Tree:**
 ```
 ERROR DETECTED
     ↓
-1. CATEGORIZE (Compilation/Runtime/Performance/Logic)
+1. CATEGORIZE (ErrorCategorizer)
+    → {error_type, phase, severity, recoverable, hint}
     ↓
-2. CALCULATE CONFIDENCE (using existing confidence_scorer.py)
+2. CALCULATE CONFIDENCE (confidence_scorer.py)
     ↓
-3. DECIDE:
+3. HYBRID DECISION:
    IF confidence > 85%:
-       → Use cached solution (high confidence)
-   ELIF confidence > 60% AND attempts < category_limit:
+       → Use cached solution
+   ELIF confidence > 60% AND attempts < stoploss:
        → Retry with prompt variation
-   ELIF attempts < escalation_limit:
+   ELIF model_level < max_escalation:
        → Escalate to next model in chain
    ELSE:
-       → SearchAgent (web search)
+       → SearchAgent (web lookup) or Manual
     ↓
-4. TRACK RESULT (update learning DB, success rate)
+4. TRACK RESULT (learning_module_v2, Meta-Supervisor aggregates)
 ```
+
+**Stop-Loss Limits:**
+- Per-model: 2 consecutive failures → escalate
+- Per-phase: `retry_build=2`, `retry_test=1`, `retry_profile=1`
 
 ### Code Style
 - Type hints mandatory
@@ -477,6 +603,7 @@ ERROR DETECTED
    - Proceed with broken code in early steps
    - Make multiple file changes simultaneously without approval
    - Continue when errors occur - fix immediately instead
+   - Use `llama3.1:8b` for CUDA tasks
 
 4. **Philosophy**
    - Spekulationen oder "was wäre wenn"
@@ -490,7 +617,7 @@ ERROR DETECTED
 
 1. **Session Start**
    - Read this file FIRST: `web_fetch` the GitHub URL
-   - Check KISYSTEM_COMPLETE.txt for comprehensive architecture
+   - Check file structure before making changes
    - Verify current state vs. documented state
 
 2. **Before Changes**
@@ -522,45 +649,45 @@ ERROR DETECTED
 - Professional-grade like Trinnov Altitude 32
 - Acourate integration for measurements
 
-### KISYSTEM Role
-**Autonomous Development Assistant**
-- Generate CUDA kernels for audio DSP
-- Test code with actual hardware (RTX 4070, RME MADI)
-- Learn from errors (never repeat same mistake)
-- Optimize performance automatically
-- Eventually: Self-develop U3DAW components
+### KISYSTEM Role (Phase 7)
+**Proactive, Learning-Optimized Development System**
+- **Meta-Supervisor:** Data-driven prioritization and model selection
+- **7-Model-Routing:** Domain-specific escalation with Stop-Loss
+- **Hybrid Decision Logic:** Evidence-based model choice (40% Meta, 30% Complexity, 30% Failure)
+- **Two-Tier-Profiling:** Fast feedback with selective deep profiling
+- **Cost-Aware Queue:** ROI-optimized task scheduling
+- **Async I/O:** Parallel builds with non-blocking execution
 
-### Success Metrics
-- Compilation success rate > 90%
-- No repeated errors (learning works)
-- Performance improvements per iteration
-- Hardware-in-the-loop testing functional
-- Autonomous operation (minimal manual intervention)
+### Success Metrics (Phase 7)
+- **Compilation Success:** >90%
+- **Learning Efficiency:** No repeated errors (same domain/model/error_type)
+- **Performance Optimization:** Measurable improvement per iteration
+- **Model Selection Accuracy:** Meta-Supervisor bias hit-rate >70%
+- **Time Savings:** Two-Tier-Profiling reduces profiling time 40-55%
+- **Autonomous Operation:** Minimal manual intervention
 
 ---
 
 ## 📝 SESSION LOGS
 
-### 2025-11-07 - RUN 30 (V3.0 Complete)
-- ✅ Hybrid Error Handler implemented (603 lines)
-- ✅ FixerAgentV3 created (671 lines)
-- ✅ PerformanceParser enhanced (300 lines)
-- ✅ Comprehensive test suite (364 lines)
-- ✅ 4/4 tests PASSED (100%)
-- ✅ Committed to Git (7,000+ lines added)
-- ✅ Status: Production Ready
+### 2025-11-07 (RUN 29)
+- **RUNs 1-24:** CUDA optimization loop debugging (14 hours)
+- **RUN 25:** First test with all fixes - no metrics extracted
+- **RUN 26-27:** PerformanceParser import issues
+- **RUN 28:** ModelSelector parameter mismatch
+- **RUN 29:** llama3.1:8b generates broken CUDA code
+- **Status:** Profiling still not working, need nsys debug
+- **Evening:** Created CLAUDE_INSTRUCTIONS.md, Error Categorizer
 
-### 2025-11-07 - RUNs 1-29
-- CUDA optimization loop debugging (14 hours)
-- ModelSelector fixes
-- PerformanceParser import fixes
-- Learning Module fixes
-- Auto-include injection fixes
-
-### 2025-11-08 - Future Feature Discussion
-- Protocol Discovery Agent concept
-- Three approaches evaluated (A/B/C)
-- Awaiting decision on implementation strategy
+### 2025-11-10 (RUN 32)
+- **Phase 7 Implementation Start**
+- **Status:** Meta-Supervisor + 7-Model-Routing + Hybrid Decision Logic
+- **Files to Create:**
+  - `core/meta_supervisor.py`
+  - `core/hybrid_decision.py`
+  - `config/optimization_config.json`
+  - `tests/test_phase7_meta.py`
+- **Documentation:** KISYSTEM_Optimization_Spec_v7.md integrated
 
 ---
 
@@ -568,8 +695,8 @@ ERROR DETECTED
 
 - **GitHub Repo:** https://github.com/JoeBoh71/KISYSTEM
 - **This File:** https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/CLAUDE_INSTRUCTIONS.md
-- **Complete Documentation:** KISYSTEM_COMPLETE.txt (in repo)
-- **User Preferences:** See userPreferences in context (German, scientific approach)
+- **Phase 7 Spec:** `KISYSTEM_Optimization_Spec_v7.md`
+- **User Preferences:** See userMemories in context (German, scientific approach)
 
 ---
 
@@ -582,7 +709,7 @@ ERROR DETECTED
 - After significant debugging sessions
 - When adding/removing models
 - Before ending a long session
-- After major version bumps (V3.0 → V3.1)
+- When transitioning between phases
 
 **How to update:**
 1. Create updated version with `create_file`
@@ -594,6 +721,3 @@ ERROR DETECTED
 **END OF INSTRUCTIONS**
 
 *Remember: This file is YOUR memory across sessions. Keep it accurate and up-to-date!*
-
-**Current Version:** V3.0 (RUN 30+)  
-**Next Major Update:** When V3.1 features are implemented or Discovery Agent decision is made
