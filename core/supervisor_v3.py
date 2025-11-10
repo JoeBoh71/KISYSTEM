@@ -18,6 +18,8 @@ Version: 3.1 (Phase 7)
 import asyncio
 import sys
 import json
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -513,6 +515,9 @@ class SupervisorV3:
                     
                     self.stats["tasks_completed"] += 1
                     return result
+                else:
+                    # Validation failed after fix - record failure for escalation
+                    self._record_phase_outcome('fix', fix_model, domain or 'generic', success=False)
                 
                 # Still errors - continue loop
                 errors = validation_result.get("errors", ["Unknown error"])
@@ -617,21 +622,227 @@ class SupervisorV3:
         tests: str,
         language: str
     ) -> Dict:
-        """Execute validation phase (run tests)"""
+        """
+        Execute validation phase: Compile and run tests.
         
-        # MVP: Validation disabled - assume code works if it compiled
-        # TODO: Actually run the tests when ready
+        Args:
+            code: Source code to validate
+            tests: Test code to run
+            language: Programming language ('cuda', 'cpp', 'python')
         
-        print("[Supervisor V3] Validation: DISABLED (assuming success)")
-        print("[Supervisor V3] For MVP: Manual testing required")
+        Returns:
+            Dict with:
+                - passed: bool (True if all tests pass)
+                - errors: List[str] (compilation/runtime errors)
+                - output: str (test output)
+        """
         
-        # Always pass for now
-        passed = True
+        print(f"[Supervisor V3] Validation: ENABLED")
+        print(f"[Supervisor V3] Language: {language}")
         
-        return {
-            "passed": passed,
-            "errors": []
-        }
+        errors = []
+        output_text = ""
+        
+        try:
+            # Create temporary workspace
+            temp_dir = Path(tempfile.mkdtemp(prefix="kisystem_validate_"))
+            print(f"[Supervisor V3] Workspace: {temp_dir}")
+            
+            # Determine file extensions
+            if language.lower() in ['cuda', 'cu']:
+                code_ext = '.cu'
+                test_ext = '.cpp'
+                compile_with_nvcc = True
+            elif language.lower() in ['cpp', 'c++']:
+                code_ext = '.cpp'
+                test_ext = '.cpp'
+                compile_with_nvcc = False
+            elif language.lower() == 'python':
+                code_ext = '.py'
+                test_ext = '.py'
+                compile_with_nvcc = False
+            else:
+                code_ext = '.cpp'
+                test_ext = '.cpp'
+                compile_with_nvcc = False
+            
+            # Write files
+            code_file = temp_dir / f"code{code_ext}"
+            test_file = temp_dir / f"test{test_ext}"
+            
+            code_file.write_text(code, encoding='utf-8')
+            test_file.write_text(tests, encoding='utf-8')
+            
+            print(f"[Supervisor V3] ✓ Wrote code: {code_file.name} ({len(code)} chars)")
+            print(f"[Supervisor V3] ✓ Wrote tests: {test_file.name} ({len(tests)} chars)")
+            
+            # STEP 1: Compile main code
+            if compile_with_nvcc:
+                # CUDA compilation with nvcc
+                print(f"[Supervisor V3] Compiling CUDA code with nvcc...")
+                
+                compile_cmd = [
+                    'nvcc',
+                    '-arch=sm_89',  # RTX 4070
+                    '-O3',
+                    '--use_fast_math',
+                    '-Xcompiler', '/EHsc',  # Windows: Enable C++ exceptions
+                    '-o', str(temp_dir / 'code.exe'),
+                    str(code_file)
+                ]
+                
+                result = subprocess.run(
+                    compile_cmd,
+                    cwd=temp_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+                
+                if result.returncode != 0:
+                    errors.append(f"NVCC compilation failed:\n{result.stderr}")
+                    print(f"[Supervisor V3] ✗ NVCC compilation failed")
+                    return {
+                        "passed": False,
+                        "errors": errors,
+                        "output": result.stderr
+                    }
+                
+                print(f"[Supervisor V3] ✓ NVCC compilation successful")
+            
+            # STEP 2: Compile and run tests
+            if language.lower() == 'python':
+                # Python: Run with pytest
+                print(f"[Supervisor V3] Running Python tests with pytest...")
+                
+                test_cmd = [
+                    'python', '-m', 'pytest',
+                    str(test_file),
+                    '-v',
+                    '--tb=short'
+                ]
+                
+            else:
+                # C++/CUDA tests: Compile with g++ and run
+                print(f"[Supervisor V3] Compiling tests with g++...")
+                
+                # Check if we need to link CUDA libraries
+                link_flags = []
+                if compile_with_nvcc:
+                    # Link against CUDA runtime
+                    link_flags = [
+                        '-L', 'C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.1/lib/x64',
+                        '-lcudart'
+                    ]
+                
+                compile_test_cmd = [
+                    'g++',
+                    '-std=c++17',
+                    '-O2',
+                    '-o', str(temp_dir / 'test.exe'),
+                    str(test_file),
+                    str(code_file) if not compile_with_nvcc else ''
+                ] + link_flags
+                
+                # Remove empty strings
+                compile_test_cmd = [x for x in compile_test_cmd if x]
+                
+                result = subprocess.run(
+                    compile_test_cmd,
+                    cwd=temp_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+                
+                if result.returncode != 0:
+                    errors.append(f"Test compilation failed:\n{result.stderr}")
+                    print(f"[Supervisor V3] ✗ Test compilation failed")
+                    return {
+                        "passed": False,
+                        "errors": errors,
+                        "output": result.stderr
+                    }
+                
+                print(f"[Supervisor V3] ✓ Test compilation successful")
+                
+                # Run tests
+                test_cmd = [str(temp_dir / 'test.exe')]
+            
+            # Execute tests
+            print(f"[Supervisor V3] Running tests...")
+            
+            result = subprocess.run(
+                test_cmd,
+                cwd=temp_dir,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            output_text = result.stdout + result.stderr
+            
+            if result.returncode != 0:
+                # Tests failed
+                errors.append(f"Tests failed:\n{output_text}")
+                print(f"[Supervisor V3] ✗ Tests failed (returncode={result.returncode})")
+                print(f"[Supervisor V3] Output:\n{output_text[:500]}")
+                
+                return {
+                    "passed": False,
+                    "errors": errors,
+                    "output": output_text
+                }
+            
+            # Tests passed!
+            print(f"[Supervisor V3] ✅ All tests passed!")
+            print(f"[Supervisor V3] Output:\n{output_text[:300]}")
+            
+            return {
+                "passed": True,
+                "errors": [],
+                "output": output_text
+            }
+            
+        except subprocess.TimeoutExpired:
+            errors.append("Validation timeout (compilation or test execution took >60s)")
+            print(f"[Supervisor V3] ✗ Timeout")
+            return {
+                "passed": False,
+                "errors": errors,
+                "output": "Timeout"
+            }
+            
+        except FileNotFoundError as e:
+            # nvcc or g++ not found
+            errors.append(f"Compiler not found: {e}. Please ensure nvcc and g++ are in PATH.")
+            print(f"[Supervisor V3] ✗ Compiler not found: {e}")
+            return {
+                "passed": False,
+                "errors": errors,
+                "output": str(e)
+            }
+            
+        except Exception as e:
+            errors.append(f"Validation error: {str(e)}")
+            print(f"[Supervisor V3] ✗ Validation error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "passed": False,
+                "errors": errors,
+                "output": str(e)
+            }
+        
+        finally:
+            # Cleanup temp directory (optional)
+            try:
+                import shutil
+                # Keep temp dir for debugging in case of failure
+                if not errors:
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+            except:
+                pass
     
     async def _fix_phase(
         self,
