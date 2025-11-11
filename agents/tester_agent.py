@@ -1,10 +1,19 @@
 """
-KISYSTEM TesterAgent - Phase 5 Complete
+KISYSTEM TesterAgent - Phase 5 Complete + RUN 37 Fixes
 Enhanced with Smart Model Routing + Auto-Dependency Management
 
+RUN 37.1 Fixes (v2.1):
+- Markdown stripping: Removes ```cpp, ```python code fences from LLM output
+- Prevents compilation errors from stray backticks
+
+RUN 37.2 Fixes (v2.2):
+- Simple tests: Uses "simple" framework instead of gtest for C++/CUDA
+- No gtest dependency required
+- Tests compile without external libraries
+
 Author: Jörg Bohne
-Date: 2025-11-06
-Version: 2.0
+Date: 2025-11-11
+Version: 2.2
 """
 
 import asyncio
@@ -201,7 +210,7 @@ class TesterAgent:
             return "pytest"  # Default for Python
         
         elif language in ["c++", "cpp", "cuda"]:
-            return "gtest"  # Google Test
+            return "simple"  # Simple tests without framework (no gtest dependency)
         
         elif language in ["javascript", "typescript"]:
             return "jest"
@@ -322,7 +331,23 @@ Tests:"""
                 timeout=timeout
             )
             
-            return tests.strip()
+            # CRITICAL: Strip markdown code blocks that LLMs often add
+            # RUN 37 Fix - remove ```cpp, ```python, etc.
+            tests_clean = tests.strip()
+            
+            # Remove markdown code fences
+            if tests_clean.startswith('```'):
+                # Find first newline after opening fence
+                first_newline = tests_clean.find('\n')
+                if first_newline > 0:
+                    # Remove opening fence line
+                    tests_clean = tests_clean[first_newline + 1:]
+                
+                # Remove closing fence
+                if tests_clean.endswith('```'):
+                    tests_clean = tests_clean[:-3].rstrip()
+            
+            return tests_clean
             
         except Exception as e:
             print(f"[TesterAgent] ✗ Ollama generation failed: {e}")

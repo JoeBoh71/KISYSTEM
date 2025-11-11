@@ -15,9 +15,15 @@ RUN 37 Fixes (v3.6):
 - stdout+stderr capture for g++ errors (Line 780-793)
 - Full error output printing for debugging
 
+RUN 37.2 Improvements (v3.7):
+- Pre-Research: SearchAgent called BEFORE BuilderAgent for complex tasks
+- Task complexity analysis: simple/medium/complex detection
+- Search results integrated into BuilderAgent context
+- Prevents LLM hallucination of non-existent APIs
+
 Author: Jörg Bohne
 Date: 2025-11-11
-Version: 3.6 (Phase 7 + RUN 37 Fixes)
+Version: 3.7 (Phase 7 + RUN 37 + RUN 37.2 Fixes)
 """
 
 import asyncio
@@ -166,6 +172,89 @@ class SupervisorV3:
         print(f"[Supervisor V3] Workspace: {self.workspace}")
         print(f"[Supervisor V3] Max iterations: {max_iterations}")
         print(f"[Supervisor V3] Phase 7: {'ENABLED' if self.phase7_enabled else 'DISABLED'}")
+    
+    def _analyze_task_complexity(self, task: str, language: str) -> str:
+        """
+        Analyze task complexity based on keywords and language.
+        
+        Args:
+            task: Task description
+            language: Programming language
+            
+        Returns:
+            Complexity level: 'simple', 'medium', 'complex'
+        """
+        task_lower = task.lower()
+        
+        # Complex indicators
+        complex_keywords = [
+            'fft', 'pqmf', 'filter', 'convolution', 'optimization',
+            'multi-stage', 'real-time', 'parallel', 'distributed',
+            'advanced', 'sophisticated', 'frequency domain'
+        ]
+        
+        # Medium indicators  
+        medium_keywords = [
+            'algorithm', 'processing', 'transform', 'compute',
+            'analysis', 'implementation'
+        ]
+        
+        # Count keyword matches
+        complex_count = sum(1 for kw in complex_keywords if kw in task_lower)
+        medium_count = sum(1 for kw in medium_keywords if kw in task_lower)
+        
+        # CUDA is generally complex
+        if language.lower() == 'cuda':
+            if complex_count > 0:
+                return 'complex'
+            elif medium_count > 0 or len(task.split()) > 15:
+                return 'complex'
+            else:
+                return 'medium'
+        
+        # Other languages
+        if complex_count >= 2:
+            return 'complex'
+        elif complex_count >= 1 or medium_count >= 2:
+            return 'medium'
+        else:
+            return 'simple'
+    
+    async def _pre_research(self, task: str, language: str) -> Optional[str]:
+        """
+        Perform pre-research for complex tasks using SearchAgent.
+        
+        Args:
+            task: Task description
+            language: Programming language
+            
+        Returns:
+            Search results or None if no SearchAgent available
+        """
+        if not self.search:
+            return None
+        
+        print(f"\n[Supervisor V3] 🔍 Pre-Research for complex task...")
+        
+        # Build search query from task + language
+        search_query = f"{task} {language} implementation example"
+        
+        # Add language-specific terms
+        if language.lower() == 'cuda':
+            search_query += " cuFFT CUDA API"
+        elif language.lower() in ['c++', 'cpp']:
+            search_query += " C++ standard library"
+        elif language.lower() == 'python':
+            search_query += " Python best practices"
+        
+        try:
+            results = await self.search.search(search_query, context=task)
+            print(f"[Supervisor V3] ✓ Pre-research completed ({len(results)} chars)")
+            return results
+        except Exception as e:
+            print(f"[Supervisor V3] ✗ Pre-research failed: {e}")
+            return None
+    
     
     def _load_optimization_config(self, config_path: Path) -> Dict:
         """Load optimization config from JSON file."""
@@ -333,6 +422,20 @@ class SupervisorV3:
             print(f"\n{'='*70}")
             print(f"[Supervisor V3] PHASE 1: BUILD")
             print(f"{'='*70}\n")
+            
+            # RUN 37.2: Pre-Research for complex tasks
+            complexity = self._analyze_task_complexity(task, language)
+            print(f"[Supervisor V3] Task complexity: {complexity}")
+            
+            if complexity == 'complex' and self.search:
+                search_results = await self._pre_research(task, language)
+                if search_results:
+                    # Add to context for BuilderAgent
+                    if context is None:
+                        context = {}
+                    context['search_results'] = search_results
+                    context['has_search_results'] = True
+                    print(f"[Supervisor V3] ✓ Search results added to context")
             
             iteration += 1
             result["iterations"] = iteration

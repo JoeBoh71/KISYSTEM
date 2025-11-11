@@ -1,10 +1,21 @@
 """
-KISYSTEM FixerAgent - Phase 5 Complete
+KISYSTEM FixerAgent - Phase 5 Complete + RUN 37 Fixes
 Enhanced with Smart Escalation + Model Routing + Auto-Dependency Management
 
+RUN 37 Fixes (v2.4):
+- failure_count from supervisor context (Line 90-95)
+- Dynamic temperature: 0.3 + (failure_count * 0.1) (Line 582)
+- Full error printing for debugging (Line 78-84)
+
+RUN 37.1 Improvements (v2.5):
+- Minimal surgical fix prompts to prevent aggressive code changes
+- Explicit instructions: "Do NOT delete working code"
+- Specific examples for common errors (M_PI, headers, APIs)
+- Preservation of existing functionality emphasized
+
 Author: Jörg Bohne
-Date: 2025-11-06
-Version: 2.0
+Date: 2025-11-11
+Version: 2.5
 """
 
 import asyncio
@@ -527,7 +538,15 @@ Previous fixes have failed. Analyze:
 2. Why did previous fixes fail?
 3. What is the correct solution?
 
-CRITICAL INSTRUCTIONS:
+CRITICAL INSTRUCTIONS FOR MINIMAL SURGICAL FIX:
+- Make the SMALLEST possible change to fix the error
+- Do NOT delete working code
+- Do NOT restructure or refactor
+- ONLY fix the specific error mentioned
+- If error is "M_PI undefined" → add #define M_PI, DO NOT rewrite code
+- If error is "missing header" → add #include, DO NOT rewrite code
+- If error is "wrong API" → replace API call, DO NOT rewrite code
+- Preserve ALL existing functionality
 - Output ONLY the corrected code
 - NO explanations, NO markdown, NO comments about the changes
 - Start directly with #include or code
@@ -535,8 +554,8 @@ CRITICAL INSTRUCTIONS:
 
 Corrected code:"""
         else:
-            # Standard fix prompt
-            prompt = f"""Fix the following {language} code that produces an error:
+            # Standard fix prompt with minimal change emphasis
+            prompt = f"""Fix the following {language} code that produces an error.
 
 Code:
 {code}
@@ -544,7 +563,16 @@ Code:
 Error:
 {error}
 
-CRITICAL INSTRUCTIONS:
+CRITICAL INSTRUCTIONS FOR MINIMAL SURGICAL FIX:
+- Make the SMALLEST possible change to fix the error
+- Do NOT delete working code
+- Do NOT restructure or refactor unless absolutely necessary
+- ONLY fix the specific error mentioned
+- If error is "identifier undefined" → add #define or #include, DO NOT rewrite
+- If error is "missing header" → add #include, DO NOT rewrite
+- If error is "expression must be constant" → use constexpr or static, DO NOT delete arrays
+- If error is "wrong API" → replace API call only, DO NOT rewrite
+- Preserve ALL existing functionality and logic
 - Output ONLY the corrected code
 - NO explanations, NO markdown, NO comments about the changes
 - Start directly with #include or code
