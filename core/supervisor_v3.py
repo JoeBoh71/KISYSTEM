@@ -10,9 +10,14 @@ Phase 7 Features:
 - Two-Tier-Profiling support (Tier1: 100ms, Tier2: 1000ms)
 - Cost-Aware Queue (ROI-based scheduling)
 
+RUN 37 Fixes (v3.6):
+- stdout+stderr capture for nvcc errors (Line 716-729)
+- stdout+stderr capture for g++ errors (Line 780-793)
+- Full error output printing for debugging
+
 Author: Jörg Bohne
-Date: 2025-11-10
-Version: 3.1 (Phase 7)
+Date: 2025-11-11
+Version: 3.6 (Phase 7 + RUN 37 Fixes)
 """
 
 import asyncio
@@ -154,6 +159,9 @@ class SupervisorV3:
             "fallback_to_phase6": 0
         }
         
+        # Domain tracking for consistency across phases (Phase 7)
+        self.current_domain = None
+        
         print("[Supervisor V3] ✓ Initialized")
         print(f"[Supervisor V3] Workspace: {self.workspace}")
         print(f"[Supervisor V3] Max iterations: {max_iterations}")
@@ -212,6 +220,12 @@ class SupervisorV3:
                 print(f"  Raw Scores: Meta={decision.meta_score:.3f}, "
                       f"Complexity={decision.complexity_score:.3f}, "
                       f"Failure={decision.failure_score:.3f}")
+                
+                # CRITICAL FIX: Store detected domain for consistency across phases
+                if hasattr(decision, 'detected_domain'):
+                    self.current_domain = decision.detected_domain
+                    if domain is None:
+                        print(f"  Domain: {self.current_domain} (auto-detected)")
                 
                 return decision.selected_model
                 
@@ -291,6 +305,9 @@ class SupervisorV3:
         print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("="*70 + "\n")
         
+        # CRITICAL FIX: Reset current_domain for new task
+        self.current_domain = domain
+        
         result = {
             "status": "pending",
             "task": task,
@@ -337,7 +354,7 @@ class SupervisorV3:
             if build_result["status"] != "completed":
                 result["status"] = "failed"
                 result["errors"].append("Build phase failed")
-                self._record_phase_outcome('build', build_model, domain or 'generic', success=False)
+                self._record_phase_outcome('build', build_model, self.current_domain or domain or 'generic', success=False)
                 return result
             
             current_code = build_result["code"]
@@ -350,7 +367,7 @@ class SupervisorV3:
                 "model": build_result["model_used"]
             })
             
-            self._record_phase_outcome('build', build_model, domain or 'generic', success=True)
+            self._record_phase_outcome('build', build_model, self.current_domain or domain or 'generic', success=True)
             
             print(f"[Supervisor V3] ✓ Build phase completed")
             print(f"[Supervisor V3] Code: {len(current_code)} characters")
@@ -378,7 +395,7 @@ class SupervisorV3:
             if test_result["status"] != "completed":
                 result["status"] = "failed"
                 result["errors"].append("Test generation failed")
-                self._record_phase_outcome('test', test_model, domain or 'generic', success=False)
+                self._record_phase_outcome('test', test_model, self.current_domain or domain or 'generic', success=False)
                 return result
             
             current_tests = test_result["tests"]
@@ -391,7 +408,7 @@ class SupervisorV3:
                 "model": test_result["model_used"]
             })
             
-            self._record_phase_outcome('test', test_model, domain or 'generic', success=True)
+            self._record_phase_outcome('test', test_model, self.current_domain or domain or 'generic', success=True)
             
             print(f"[Supervisor V3] ✓ Test phase completed")
             print(f"[Supervisor V3] Tests: {len(current_tests)} characters")
@@ -479,7 +496,7 @@ class SupervisorV3:
                         "status": "failed",
                         "model": fix_model
                     })
-                    self._record_phase_outcome('fix', fix_model, domain or 'generic', success=False)
+                    self._record_phase_outcome('fix', fix_model, self.current_domain or domain or 'generic', success=False)
                     continue
                 
                 current_code = fix_result["fixed_code"]
@@ -491,8 +508,6 @@ class SupervisorV3:
                     "model": fix_result["model_used"]
                 })
                 
-                self._record_phase_outcome('fix', fix_model, domain or 'generic', success=True)
-                
                 # Re-validate
                 validation_result = await self._validate_phase(
                     current_code,
@@ -501,6 +516,9 @@ class SupervisorV3:
                 )
                 
                 if validation_result["passed"]:
+                    # Validation passed - record fix success
+                    self._record_phase_outcome('fix', fix_model, self.current_domain or domain or 'generic', success=True)
+                    
                     # Fixed!
                     result["status"] = "completed"
                     result["final_code"] = current_code
@@ -517,7 +535,7 @@ class SupervisorV3:
                     return result
                 else:
                     # Validation failed after fix - record failure for escalation
-                    self._record_phase_outcome('fix', fix_model, domain or 'generic', success=False)
+                    self._record_phase_outcome('fix', fix_model, self.current_domain or domain or 'generic', success=False)
                 
                 # Still errors - continue loop
                 errors = validation_result.get("errors", ["Unknown error"])
@@ -688,7 +706,8 @@ class SupervisorV3:
                     '--use_fast_math',
                     '-Xcompiler', '/EHsc',  # Windows: Enable C++ exceptions
                     '-o', str(temp_dir / 'code.exe'),
-                    str(code_file)
+                    str(code_file),
+                    '-lcufft', '-lcublas', '-lcusparse'  # Link CUDA libraries
                 ]
                 
                 result = subprocess.run(
@@ -700,12 +719,20 @@ class SupervisorV3:
                 )
                 
                 if result.returncode != 0:
-                    errors.append(f"NVCC compilation failed:\n{result.stderr}")
+                    # CRITICAL: nvcc schreibt errors nach stdout UND stderr
+                    # RUN 37 Fix - capture both streams
+                    error_output = result.stderr.strip() if result.stderr.strip() else result.stdout.strip()
+                    if not error_output:
+                        error_output = "Unknown NVCC compilation error (no output)"
+                    
+                    errors.append(f"NVCC compilation failed:\n{error_output}")
                     print(f"[Supervisor V3] ✗ NVCC compilation failed")
+                    print(f"[Supervisor V3] Error output ({len(error_output)} chars):")
+                    print(error_output[:500] if len(error_output) > 500 else error_output)
                     return {
                         "passed": False,
                         "errors": errors,
-                        "output": result.stderr
+                        "output": error_output
                     }
                 
                 print(f"[Supervisor V3] ✓ NVCC compilation successful")
@@ -756,12 +783,20 @@ class SupervisorV3:
                 )
                 
                 if result.returncode != 0:
-                    errors.append(f"Test compilation failed:\n{result.stderr}")
+                    # CRITICAL: g++ kann errors nach stdout UND stderr schreiben
+                    # RUN 37 Fix - capture both streams
+                    error_output = result.stderr.strip() if result.stderr.strip() else result.stdout.strip()
+                    if not error_output:
+                        error_output = "Unknown g++ compilation error (no output)"
+                    
+                    errors.append(f"Test compilation failed:\n{error_output}")
                     print(f"[Supervisor V3] ✗ Test compilation failed")
+                    print(f"[Supervisor V3] Error output ({len(error_output)} chars):")
+                    print(error_output[:500] if len(error_output) > 500 else error_output)
                     return {
                         "passed": False,
                         "errors": errors,
-                        "output": result.stderr
+                        "output": error_output
                     }
                 
                 print(f"[Supervisor V3] ✓ Test compilation successful")
