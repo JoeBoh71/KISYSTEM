@@ -126,11 +126,17 @@ class FixerAgent:
             should_search = False
             
             if self.search:
-                # Always search for compile errors in compiled languages
-                if language.lower() in ['cuda', 'cu', 'cpp', 'c++', 'c'] and 'error' in error.lower():
-                    should_search = True
-                    print(f"\n[FixerAgent] 🔍 Compile error detected - searching web for solutions...")
-                # For other errors: search after 3 failures
+                # PRIORITY 1: API errors (undefined symbols) - search IMMEDIATELY
+                api_error_keywords = ['undefined', 'unresolved', 'not declared', 'undeclared']
+                if language.lower() in ['cuda', 'cu', 'cpp', 'c++', 'c']:
+                    if any(kw in error.lower() for kw in api_error_keywords):
+                        should_search = True
+                        print(f"\n[FixerAgent] 🔍 API error detected (undefined symbol) - searching web immediately...")
+                    # PRIORITY 2: Other compile errors - search after 3 failures
+                    elif 'error' in error.lower() and failure_count >= 3:
+                        should_search = True
+                        print(f"\n[FixerAgent] ⚠️ {failure_count} failures - triggering web search...")
+                # PRIORITY 3: Non-compile errors - search after 3 failures
                 elif failure_count >= 3:
                     should_search = True
                     print(f"\n[FixerAgent] ⚠️ {failure_count} failures - triggering web search...")
@@ -360,7 +366,13 @@ Requirements:
 - Add comments explaining optimizations
 - Keep code structure similar for easy diff
 
-Optimized Code:"""
+CRITICAL INSTRUCTIONS:
+- Output ONLY the optimized code
+- NO explanations, NO markdown, NO comments about the changes
+- Start directly with #include or code
+- Do NOT wrap in ```cpp```, ```cuda```, or any other code blocks
+
+Optimized code:"""
         
         # Import Ollama client
         from ollama_client import OllamaClient
@@ -507,7 +519,13 @@ Previous fixes have failed. Analyze:
 2. Why did previous fixes fail?
 3. What is the correct solution?
 
-Provide fixed code with detailed explanation:"""
+CRITICAL INSTRUCTIONS:
+- Output ONLY the corrected code
+- NO explanations, NO markdown, NO comments about the changes
+- Start directly with #include or code
+- Do NOT wrap in ```cpp```, ```cuda```, or any other code blocks
+
+Corrected code:"""
         else:
             # Standard fix prompt
             prompt = f"""Fix the following {language} code that produces an error:
@@ -518,19 +536,16 @@ Code:
 Error:
 {error}
 
-Provide the corrected code:"""
+CRITICAL INSTRUCTIONS:
+- Output ONLY the corrected code
+- NO explanations, NO markdown, NO comments about the changes
+- Start directly with #include or code
+- Do NOT wrap in ```cpp```, ```cuda```, or any other code blocks
+
+Corrected code:"""
         
         # Import Ollama client
-        from ollama_client import OllamaClient, PromptTemplates
-        
-        # Build prompt using template (with escalation awareness)
-        failure_count = context.get("failure_count", 0) if context else 0
-        prompt = PromptTemplates.bug_fix(
-            code=code,
-            error=error,
-            language=language,
-            escalation=failure_count
-        )
+        from ollama_client import OllamaClient
         
         # Add search results if available
         if context and context.get("has_search_results"):
@@ -555,10 +570,13 @@ Use the information above to help fix the error."""
             timeout = 300  # 5 minutes for small models
         
         try:
+            # Increase temperature with each retry to prevent identical outputs
+            retry_temp = 0.3 + (failure_count * 0.1)  # 0.3 → 0.4 → 0.5 → 0.6
+            
             fixed_code = await client.generate(
                 model=model,
                 prompt=prompt,
-                temperature=0.3,
+                temperature=retry_temp,
                 timeout=timeout
             )
             
