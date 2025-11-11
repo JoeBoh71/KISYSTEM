@@ -77,14 +77,22 @@ class FixerAgent:
         
         print(f"\n{'='*70}")
         print(f"[FixerAgent] 🔧 Fixing {language} code...")
-        print(f"[FixerAgent] Error: {error[:80]}...")
+        print(f"[FixerAgent] Error (first 200 chars): {error[:200]}...")
+        # Always print full error for debugging
+        print(f"[FixerAgent] Full error ({len(error)} chars):")
+        print(error)
         print(f"{'='*70}\n")
         
         # Create task ID for tracking failures
         task_id = self._create_task_id(code, error)
         
-        # Get failure count
-        failure_count = self.failure_history.get(task_id, 0)
+        # Get failure count from supervisor context (preferred) or internal history
+        if context and "failure_count" in context:
+            failure_count = context["failure_count"]
+            print(f"[FixerAgent] Using failure_count from supervisor: {failure_count}")
+        else:
+            failure_count = self.failure_history.get(task_id, 0)
+            print(f"[FixerAgent] Using internal failure_count: {failure_count}")
         
         result = {
             "status": "pending",
