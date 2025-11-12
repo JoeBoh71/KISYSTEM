@@ -928,26 +928,53 @@ class SupervisorV3:
                 ]
                 
             else:
-                # C++/CUDA tests: Compile with g++ and run
-                print(f"[Supervisor V3] Compiling tests with g++...")
+                # C++/CUDA tests: Compile with nvcc or g++ depending on test content
+                # RUN 37.3 Fix: Auto-detect CUDA headers in test file
                 
-                # Check if we need to link CUDA libraries
-                link_flags = []
-                if compile_with_nvcc:
-                    # Link against CUDA runtime
-                    link_flags = [
-                        '-L', 'C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.1/lib/x64',
-                        '-lcudart'
+                # Check if test file contains CUDA headers
+                test_has_cuda = False
+                try:
+                    test_content = test_file.read_text(encoding='utf-8', errors='ignore')
+                    cuda_indicators = [
+                        '#include <cuda_runtime.h>',
+                        '#include <cuda.h>',
+                        '__global__',
+                        '__device__',
+                        'cudaMalloc',
+                        'cudaMemcpy'
                     ]
+                    test_has_cuda = any(indicator in test_content for indicator in cuda_indicators)
+                except Exception as e:
+                    print(f"[Supervisor V3] ⚠️ Could not read test file: {e}")
                 
-                compile_test_cmd = [
-                    'g++',
-                    '-std=c++17',
-                    '-O2',
-                    '-o', str(temp_dir / 'test.exe'),
-                    str(test_file),
-                    str(code_file) if not compile_with_nvcc else ''
-                ] + link_flags
+                # Determine compiler
+                if test_has_cuda or compile_with_nvcc:
+                    # Use nvcc for CUDA tests
+                    print(f"[Supervisor V3] Compiling CUDA tests with nvcc...")
+                    
+                    compile_test_cmd = [
+                        'nvcc',
+                        '-arch=sm_89',  # RTX 4070
+                        '-std=c++17',
+                        '-O2',
+                        '-o', str(temp_dir / 'test.exe'),
+                        str(test_file),
+                        str(code_file) if compile_with_nvcc else '',
+                        '-lpthread'  # Often needed for gtest
+                    ]
+                else:
+                    # Use g++ for pure C++ tests
+                    print(f"[Supervisor V3] Compiling C++ tests with g++...")
+                    
+                    compile_test_cmd = [
+                        'g++',
+                        '-std=c++17',
+                        '-O2',
+                        '-o', str(temp_dir / 'test.exe'),
+                        str(test_file),
+                        str(code_file),
+                        '-lpthread'  # Often needed for gtest
+                    ]
                 
                 # Remove empty strings
                 compile_test_cmd = [x for x in compile_test_cmd if x]
@@ -961,14 +988,15 @@ class SupervisorV3:
                 )
                 
                 if result.returncode != 0:
-                    # CRITICAL: g++ kann errors nach stdout UND stderr schreiben
-                    # RUN 37 Fix - capture both streams
+                    # CRITICAL: Both nvcc and g++ can write errors to stdout AND stderr
+                    # RUN 37.3 Fix - capture both streams for both compilers
+                    compiler_name = 'nvcc' if (test_has_cuda or compile_with_nvcc) else 'g++'
                     error_output = result.stderr.strip() if result.stderr.strip() else result.stdout.strip()
                     if not error_output:
-                        error_output = "Unknown g++ compilation error (no output)"
+                        error_output = f"Unknown {compiler_name} compilation error (no output)"
                     
-                    errors.append(f"Test compilation failed:\n{error_output}")
-                    print(f"[Supervisor V3] ✗ Test compilation failed")
+                    errors.append(f"Test compilation failed ({compiler_name}):\n{error_output}")
+                    print(f"[Supervisor V3] ✗ Test compilation failed ({compiler_name})")
                     print(f"[Supervisor V3] Error output ({len(error_output)} chars):")
                     print(error_output[:500] if len(error_output) > 500 else error_output)
                     return {

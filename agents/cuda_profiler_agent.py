@@ -25,6 +25,27 @@ except ImportError:
     PerformanceMetrics = None
 
 
+# Standard math constants (auto-injected when needed)
+MATH_DEFINES = """
+// Standard math constants (auto-injected by KISYSTEM)
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+#ifndef M_E
+#define M_E 2.71828182845904523536
+#endif
+#ifndef M_PI_2
+#define M_PI_2 1.57079632679489661923
+#endif
+#ifndef M_PI_4
+#define M_PI_4 0.78539816339744830962
+#endif
+#ifndef M_SQRT2
+#define M_SQRT2 1.41421356237309504880
+#endif
+"""
+
+
 def validate_and_clean_cuda_code(code: str) -> tuple:
     """
     Validates CUDA code and removes problematic preprocessor artifacts.
@@ -80,8 +101,10 @@ def validate_and_clean_cuda_code(code: str) -> tuple:
 
 def ensure_required_includes(code: str) -> tuple:
     """
-    Ensures critical CUDA includes are present.
+    Ensures critical CUDA includes and math defines are present.
     Returns: (code_with_includes, list_of_added_includes)
+    
+    v2.1: Added M_PI auto-injection
     """
     added = []
     
@@ -91,6 +114,12 @@ def ensure_required_includes(code: str) -> tuple:
         ('#include <iostream>', ['std::cout', 'std::cerr', 'std::endl']),
         ('#include <stdio.h>', ['printf('])
     ]
+    
+    # Check for math functions (need math.h)
+    math_functions = ['sin', 'cos', 'tan', 'sqrt', 'pow', 'exp', 'log', 'fabs', 'ceil', 'floor']
+    if any(f'({func}(' in code or f' {func}(' in code for func in math_functions):
+        if '#include <math.h>' not in code and '#include <cmath>' not in code:
+            required.append(('#include <math.h>', math_functions))
     
     for include_line, patterns in required:
         # Check if include already present
@@ -102,6 +131,18 @@ def ensure_required_includes(code: str) -> tuple:
             # Add include at the beginning
             code = include_line + '\n' + code
             added.append(include_line)
+    
+    # NEW: Check for math constants (M_PI, M_E, etc.)
+    math_constants = ['M_PI', 'M_E', 'M_PI_2', 'M_PI_4', 'M_SQRT2']
+    needs_math_defines = any(const in code for const in math_constants)
+    
+    # Check if defines are already present
+    has_defines = '#define M_PI' in code or '#ifndef M_PI' in code
+    
+    if needs_math_defines and not has_defines:
+        # Add math defines at the beginning (after includes)
+        code = MATH_DEFINES + '\n' + code
+        added.append('MATH_DEFINES')
     
     return code, added
 
