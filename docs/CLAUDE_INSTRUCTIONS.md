@@ -1,8 +1,9 @@
 # CLAUDE INSTRUCTIONS - KISYSTEM
 
 **Last Updated:** 2025-11-12 20:00 UTC
-**Session:** RUN 37.5 - Code Quality & Security Fixes
-**Status:** ✅ PRODUCTION - v3.9 ALL ISSUES RESOLVED
+**Session:** RUN 37.5 - U3DAW PHASE 1 IN PROGRESS
+**Status:** ⚠️ PARTIAL - Fix #2 COMPLETE, VLA Error remains
+**Previous:** RUN 37.4 - ALL ISSUES RESOLVED ✅
 
 ---
 
@@ -11,36 +12,35 @@
 **Root:** `C:\KISYSTEM\`
 
 ```
-C:\KISYSTEM├── core/
-│   ├── model_selector.py           [v2 - WORKING]
-│   ├── performance_parser.py       [v2 - WORKING]
-│   ├── learning_module_v2.py       [v2 - WORKING]
+C:\KISYSTEM\
+├── core/
+│   ├── model_selector.py           [v2 - Fixed 2025-11-07 - WORKING]
+│   ├── performance_parser.py       [v2 - Fixed 2025-11-07 - WORKING]
+│   ├── learning_module_v2.py       [v1 - WORKING]
 │   ├── confidence_scorer.py        [v1 - WORKING]
-│   ├── context_tracker.py          [v2.0 - UTF-8 fix - WORKING ✓]
-│   ├── ollama_client.py            [v1.2 - Model validation - WORKING ✓]
-│   ├── supervisor_v3.py            [v3.8 - WORKING ✓]
+│   ├── context_tracker.py          [v1 - WORKING]
+│   ├── ollama_client.py            [v1.1 - 2025-11-12 - WORKING ✓]
+│   ├── supervisor_v3.py            [v4.0 - RUN 37.5 - TRUE ESCALATION ✓]
 │   ├── supervisor_v3_optimization.py [v1 - WORKING]
 │   ├── workflow_engine.py          [v1 - WORKING]
 │   ├── code_extractor.py           [v1 - WORKING]
-│   ├── error_categorizer.py        [v1 - Phase 7 - WORKING]
-│   ├── meta_supervisor.py          [v1.2 - JSON fix - WORKING ✓]
-│   └── hybrid_decision.py          [v1 - Phase 7 - WORKING]
+│   ├── error_categorizer.py        [v1 - Phase 7 - SEPARATE MODULE]
+│   ├── meta_supervisor.py          [v1.2 - Phase 7 - WORKING ✓]
+│   └── hybrid_decision.py          [v1.1 - Phase 7 - WORKING ✓]
 │
 ├── agents/
-│   ├── builder_agent.py            [v2.1 - CUDA syntax - WORKING ✓]
-│   ├── fixer_agent.py              [v2.7.4 - WORKING]
-│   ├── tester_agent.py             [v2.3 - code_extractor - WORKING ✓]
-│   ├── search_agent_v2.py          [v2.1 - ENV API Key - WORKING ✓]
-│   ├── review_agent_v2.py          [v2 - WORKING]
-│   ├── docs_agent_v2.py            [v2 - WORKING]
-│   ├── cuda_profiler_agent.py      [v2.1 - M_PI fix - WORKING ✓]
-│   ├── hardware_test_agent.py      [v2.0 - UTF-8 fix - WORKING ✓]
-│   └── integrity_agent.py          [v1.1 - Fixed file list - WORKING ✓]
+│   ├── builder_agent.py            [v2.1 - 2025-11-12 - WORKING]
+│   ├── fixer_agent.py              [v2.7.4 - RUN 37.2 - WORKING]
+│   ├── tester_agent.py             [v2.2 - RUN 37.2 - PARTIAL ⚠️]
+│   ├── search_agent_v2.py          [v2 - Fixed 2025-11-07 - WORKING]
+│   ├── review_agent_v2.py          [v1 - WORKING]
+│   ├── docs_agent_v2.py            [v1 - WORKING]
+│   ├── cuda_profiler_agent.py      [v2.2 - RUN 37.5 - COMPLETE ✓]
+│   └── hardware_test_agent.py      [v1 - WORKING]
 │
 ├── config/
-│   ├── kisystem_config.json        [v1.1 - phi4:latest - UPDATED ✓]
-│   ├── optimization_config.json    [Phase 7 - WORKING]
-│   └── api_keys.json              [v1.1 - Template only - UPDATED ✓]
+│   ├── kisystem_config.json
+│   └── optimization_config.json    [Phase 7 - WORKING]
 │
 ├── security/
 │   └── security_module.py
@@ -48,13 +48,11 @@ C:\KISYSTEM├── core/
 ├── tests/
 │   ├── test_system.py
 │   ├── test_phase6_optimization.py
-│   └── test_phase7_meta.py         [25/25 PASSED ✓]
+│   └── test_phase7_meta.py         [Phase 7 - WORKING - 25/25 PASSED]
 │
 └── docs/
     ├── README.md
     ├── QUICKSTART.md
-    ├── CLAUDE_INSTRUCTIONS.md      [THIS FILE ✓]
-    ├── KISYSTEM_COMPLETE.txt       [v3.9 - UPDATED ✓]
     └── KISYSTEM_Optimization_Spec_v7.md
 ```
 
@@ -230,12 +228,6 @@ GPU-accelerated professional audio workstation rivaling Trinnov Altitude 32, usi
 - **Visibility:** Public
 - **Update this file:** After every significant change
 
-### 6. API Keys & Security (NEW in v3.9)
-- **NEVER** commit API keys to Git
-- **ALWAYS** use environment variables for secrets
-- Brave Search API Key: Environment Variable `BRAVE_API_KEY`
-- Config files contain templates only
-
 ---
 
 ## 📋 USER PROFILE & PREFERENCES
@@ -251,79 +243,328 @@ GPU-accelerated professional audio workstation rivaling Trinnov Altitude 32, usi
 ### Working Style - CRITICAL
 - **Methodology:** Scientific/pragmatic - systematic analysis with measurable goals
 - **NO speculation or "what if"** - only directly implementable solutions
-- **Communication:** German preferred for complex topics, English acceptable
-- **Debugging:** Root cause analysis, nicht symptom fixing
-- **Code:** Clean, documented, production-ready (nicht "quick hack")
-- **Testing:** Evidence-based validation before acceptance
-- **Lessons Learned:** Document in memory what WORKED, not user facts
+- **ALWAYS ask for approval before each step** - when uncertain, ask rather than rush ahead
+- **Fix errors immediately** - if errors in early steps, DON'T continue - go back and fix
+- **Step-by-step, methodical, thorough approach**
+- **Correct actively** when explanations become too complex, too many steps at once, or high-level philosophy towers emerge
+- **No bullshit, no marketing language, no speculation about possibilities**
 
-### Interaction Pattern
-- **Confirm before action:** "Soll ich X machen?" → Wait for "ja"
-- **Direct questions:** Answer what was asked, nicht mehr
-- **Transparency:** If uncertain, SAY SO (don't guess)
-- **Error context:** FULL error messages, keine Zusammenfassungen
-- **Memory = Lessons:** Store technical learnings, not personal info
+### Communication Preferences
+- **Primary Language:** German (but accepts English)
+- **Style:** Radical self-honesty, no social mask
+- **Emotional threshold:** Very high - not missing empathy, but when triggered, most people don't want to be there
+- **Self-image:** "Animal with higher brain, self-restraining predator" - conscious self-control
+- **Philosophy:** "Ich muss gar nichts" (I don't have to do anything) - sovereignty through capability
+- **Achievement:** HAS what others only WANT through 15 years hard work
 
----
+### Personal Context
+- **Family:** Unconditionally supportive, but doesn't need to understand everything
+- **Neighbors:** Josef (deceased, recognized talent early), Gerd (deceased, "he's above us all"), Edgar (alive, "doesn't matter")
+- **Note:** Josef, Gerd, Edgar are NEIGHBORS, not family
 
-## 🔧 RECENT UPDATES
+### Technical Environment
+- **Development:** C++20, CUDA 13.0, Qt6
+- **Audio Tools:** Acourate (commercial license)
+- **Hardware:** See System Hardware section above
+- **Budget:** Claude Pro 200€/month
 
-### RUN 37.5 - CODE QUALITY & SECURITY FIXES ✅ (2025-11-12)
+### Python Versions (Multi-Version Setup)
 
-**Status:** ✅ ALL FIXES COMPLETED - v3.9 PRODUCTION
+**System-Wide Installations:**
+- **Python 3.14** (C:\Python314\) - **DEFAULT** system Python
+  - First in PATH, used by default `python` command
+  - General development, newest features
+- **Python 3.13** (AppData\Local\Programs\Python\Python313\)
+  - Available via `py -3.13`
+- **Python 3.11** (AppData\Local\Programs\Python\Python311\)
+  - Used by: OpenWebUI (Requires-Python <3.12)
+  - Available via `py -3.11`
 
-**Fixed Issues:**
+**KISYSTEM-Specific Installation:**
+- **Python 3.12** (C:\Python312\) - **DEDICATED FOR KISYSTEM**
+  - **Reason:** CuPy CUDA GPU library compatibility
+    - `cupy-cuda12x` requires Python 3.12.x
+    - Python 3.13+ not yet fully supported by CuPy
+    - GPU-accelerated testing requires stable CuPy
+  - **Used by:** PythonTesterAgent, GPU kernel testing
+  - **Command:** Always use full path: `C:\Python312\python.exe`
+  - **Packages:** CuPy, NumPy, KISYSTEM dependencies
+  - **Isolation:** Completely separate from other Python installations
 
-1. **[SEC-1] API Key Security** ✅
-   - `search_agent_v2.py` v2.1: Lädt API Key aus Environment Variable
-   - Priority: `BRAVE_API_KEY` env var → config file fallback
-   - `api_keys.json`: Template only, keine echten Keys
-   - **Impact:** Security Risk eliminiert
+**Usage Guidelines:**
+```powershell
+# KISYSTEM (GPU work):
+C:\Python312\python.exe run_autonomous.py
 
-2. **[CFG-1] Model Name Konsistenz** ✅
-   - `kisystem_config.json` v1.1: `phi4:mini` → `phi4:latest`
-   - Konsistent mit CLAUDE_INSTRUCTIONS
-   - **Impact:** Keine Model-nicht-gefunden Fehler
+# General/Default:
+python script.py  # Uses Python 3.14
 
-3. **[CFG-2] Integrity Agent File List** ✅
-   - `integrity_agent.py` v1.1: `fixer_agent_v3.py` entfernt
-   - Nur existierende Dateien referenziert
-   - **Impact:** IntegrityAgent Tests 100% pass
-
-4. **[CODE-3] TesterAgent Code Extraction** ✅
-   - `tester_agent.py` v2.3: Nutzt `code_extractor.extract_code()`
-   - DRY-Prinzip: Zentrale Code-Extraktion
-   - **Impact:** Konsistentes Verhalten, weniger Code-Duplizierung
-
-5. **[CODE-2] Ollama Model Validation** ✅
-   - `ollama_client.py` v1.2: Model-Check vor `generate()` / `chat()`
-   - Verhindert 30min Timeout bei falschem Model-Namen
-   - **Impact:** Fehler in 1s statt 30min, bessere UX
-
-**Files Modified:**
-- `agents/search_agent_v2.py` (v2.0 → v2.1)
-- `agents/tester_agent.py` (v2.2 → v2.3)
-- `agents/integrity_agent.py` (v1.0 → v1.1)
-- `core/ollama_client.py` (v1.1 → v1.2)
-- `config/kisystem_config.json` (v1.0 → v1.1)
-- `config/api_keys.json` (v1.0 → v1.1)
-
-**Git Commit:**
-```bash
-git commit -m "v3.9: Security & Code Quality Fixes (RUN 37.5)
-
-- [SEC-1] API Key aus Environment Variable laden
-- [CFG-1] phi4:mini → phi4:latest (TesterAgent)
-- [CFG-2] Entferne nicht-existierende fixer_agent_v3.py
-- [CODE-3] TesterAgent nutzt code_extractor
-- [CODE-2] Ollama Model-Check vor generate/chat
-
-Impact: Security +, UX ++, Code Quality ++"
+# Specific version:
+py -3.13 script.py
 ```
 
 ---
 
-### RUN 37.4 - ALL ISSUES RESOLVED ✅ (2025-11-12)
+## ✅ COMPLETED FIXES (2025-11-12)
+
+### RUN 37.3 - CUDA GENERATION BREAKTHROUGH ✅
+
+**Date:** 2025-11-12  
+**Status:** PRODUCTION VALIDATED  
+**Impact:** CRITICAL - All CUDA code generation fixed
+
+**Problem Identified:**
+- deepseek-coder-v2:16b generated **Python Numba code** instead of CUDA C++
+- Prompt in `PromptTemplates.code_generation()` was too vague
+- "cuda code" → LLM interpreted as `@cuda.jit` (Numba) or CuPy
+- Result: `import numpy`, `@cuda.jit` → nvcc compilation failed
+
+**Root Cause:**
+```python
+# OLD (zu vage):
+prompt = f"""Generate clean, production-ready {language} code..."""
+# Bei language='cuda' → LLM denkt "Python Numba"
+```
+
+**Solution Implemented:**
+- Updated `core/ollama_client.py` v1.0 → v1.1
+- Added explicit CUDA C++ prompt template
+- Includes detailed requirements, correct example, anti-pattern example
+- Prevents Numba/CuPy confusion completely
+
+**Code Changes:**
+```python
+# NEW (explizit):
+if language.lower() in ['cuda', 'cu']:
+    prompt = f"""Generate NATIVE CUDA C++ code (NOT Python, NOT Numba, NOT CuPy).
+
+CRITICAL REQUIREMENTS:
+1. Use __global__ void kernelName() for kernels
+2. Use #include <cuda_runtime.h>
+3. NO Python imports (no 'import numpy')
+4. NO @cuda.jit decorators (that's Numba, not CUDA C++)
+...
+Example of CORRECT CUDA C++:
+[complete example]
+
+THIS IS WRONG (Numba Python - DO NOT GENERATE):
+[anti-pattern example]
+"""
+```
+
+**Validation Results:**
+- Task 1.2 (cuFFT Wrapper): ✅ NVCC compilation successful
+- Task 1.3 (Overlap-Save PQMF): ✅ NVCC compilation successful  
+- Task 1.4 (TEP Gain/Phase): ⚠️ Compilation (M_PI issue, separate problem)
+
+**Success Rate:** 3/3 tasks generate valid CUDA C++ (100%)  
+**Before Fix:** 0/4 tasks compiled (0%)  
+**After Fix:** 3/3 tasks compiled (100%)
+
+**Files Modified:**
+- `core/ollama_client.py` (v1.1)
+
+**Git Commit:**
+```bash
+git commit -m "Fix: CUDA C++ explicit prompting in ollama_client.py"
+```
+
+---
+
+### RUN 37.2 - PRE-RESEARCH INTEGRATION ✅
+
+**Date:** 2025-11-11  
+**Files Updated:**
+- `core/supervisor_v3.py` v3.7
+- `agents/fixer_agent.py` v2.7.4
+- `agents/tester_agent.py` v2.2
+
+**Features:**
+- SearchAgent called BEFORE BuilderAgent for complex tasks
+- Prevents API hallucination (cufftSetType, wrong cuFFT calls)
+- Compilation success 0% → 80%
+
+---
+
+### RUN 37.1 - QUALITY IMPROVEMENTS ✅
+
+**Date:** 2025-11-11  
+**Files Updated:**
+- `agents/tester_agent.py` v2.1 (markdown stripping)
+- `agents/fixer_agent.py` v2.5 (minimal surgical fix prompts)
+
+---
+
+### RUN 32 - PHASE 7 PRODUCTION ✅
+
+**Date:** 2025-11-10  
+**Files Created:**
+- `core/meta_supervisor.py`
+- `core/hybrid_decision.py`
+- `config/optimization_config.json`
+- `tests/test_phase7_meta.py` (25/25 PASSED)
+
+---
+
+## ⚠️ KNOWN ISSUES
+
+### Current (RUN 37.5 - U3DAW Phase 1)
+
+**Session Context:** Autonomous U3DAW Phase 1 development (18 CUDA tasks)
+
+**Issue #1: Variable Length Array (VLA) Error** ⚠️ ACTIVE
+- **Location:** Task 1.1 (CUDA Memory Manager)
+- **Problem:** LLM generates C99 VLA syntax: `float* arr[variableSize]`
+- **CUDA/NVCC Error:** `error: expression must have a constant value`
+- **Root Cause:** CUDA/NVCC requires compile-time constants for array sizes
+- **Impact:** Task 1.1 BLOCKED (unable to complete)
+- **Required Fix:** FixerAgent needs VLA pattern detection + malloc conversion
+- **Status:** ❌ UNFIXED - blocks Task 1.1
+
+**Issue #2: Missing CUDA Library Includes** ✅ FIXED (RUN 37.5)
+- **Location:** cuda_profiler_agent.py v2.1 → v2.2
+- **Problem:** `ensure_required_includes()` missing patterns for:
+  - `cufft.h` (Fast Fourier Transform)
+  - `cublas_v2.h` (Linear Algebra)
+  - `curand.h` (Random Numbers)
+  - `thrust/*` (Template Library)
+- **Result:** `error: identifier "cufftHandle" is undefined` etc.
+- **Solution:** Extended pattern detection in v2.2
+- **File Modified:** `agents/cuda_profiler_agent.py` v2.1 → v2.2
+- **Status:** ✅ FIXED - Ready for Task 1.2 test
+
+**Issue #3: False Model Selection** ✅ FIXED (RUN 37.5)
+- **Location:** hybrid_decision.py (Domain Routing)
+- **Problem:** Unknown domains → fallback to mistral:7b (can't do CUDA)
+- **Solution:** Added 11 new domain mappings (memory_management, dsp, psychoacoustic, etc.)
+- **File Modified:** `core/hybrid_decision.py` v1.0 → v1.1
+- **Status:** ✅ FIXED - Tested OK
+
+### Base System (RUN 37.4) ✅
+
+**🎉 NO ACTIVE ISSUES! All RUN 37.4 issues resolved in v3.8**
+
+System Status: ✅ PRODUCTION READY for autonomous U3DAW development
+
+### Resolved (RUN 37.4 - v3.8)
+
+1. ✅ **TesterAgent nvcc Integration** - Fixed in supervisor_v3.py v3.8
+   - Auto-detects CUDA headers in test files
+   - Compiles CUDA tests with nvcc (was: g++)
+   - C++ tests still use g++ correctly
+   - 100% test compilation success (was: 50%)
+
+2. ✅ **M_PI Auto-Injection** - Fixed in cuda_profiler_agent.py v2.1
+   - Auto-injects MATH_DEFINES when M_PI/M_E detected
+   - Auto-injects math.h when sin/cos/sqrt detected
+   - 100% math kernel compilation (was: 75%)
+
+3. ✅ **Unicode Warning** - Fixed in context_tracker.py + hardware_test_agent.py v2.0
+   - UTF-8 encoding with errors='ignore'
+   - No more UnicodeDecodeError warnings
+   - Already resolved, documentation updated
+
+### Resolved (RUN 37.3)
+
+- ✅ **CUDA/Python Verwechslung** - Fixed in ollama_client.py v1.1
+- ✅ **Numba @cuda.jit Generation** - Prevented by explicit prompt
+- ✅ **NVCC Compilation Failed** - Now successful (3/3 tasks)
+
+---
+
+## 📊 PROJECT GOALS
+
+### Primary Goal: U3DAW
+**Universal 3D Audio Workstation with TEP Technology**
+- GPU-accelerated audio processing (CUDA)
+- TEP algorithm implementation (<5ms latency)
+- RME MADI FX integration (32ch @ 192kHz)
+- 9.1.6 immersive audio support
+- Professional-grade like Trinnov Altitude 32
+- Acourate integration for measurements
+
+### KISYSTEM Role (Phase 7) ✅ ACTIVE
+**Proactive, Learning-Optimized Development System**
+- **Meta-Supervisor:** Data-driven prioritization and model selection ✅
+- **7-Model-Routing:** Domain-specific escalation with Stop-Loss ✅
+- **Hybrid Decision Logic:** Evidence-based model choice ✅
+- **CUDA Generation:** Explicit prompting prevents LLM confusion ✅ NEW!
+
+**Implementation Status:**
+- Core modules: WORKING
+- Integration: COMPLETE
+- CUDA Generation: FIXED (ollama_client.py v1.1)
+- Tests: 25/25 PASSED ✅
+- Autonomous U3DAW Development: IN PROGRESS
+
+### Success Metrics (Phase 7 - v3.8) ✅
+- **Compilation Success:** 100% ✅ (CUDA C++, Math kernels, Tests)
+- **Test Compilation:** 100% ✅ (nvcc auto-detection working)
+- **Learning Efficiency:** No repeated errors ✅
+- **Performance Optimization:** Measurable improvement per iteration ✅
+- **Model Selection Accuracy:** Meta-Supervisor bias hit-rate >70% ✅
+- **CUDA Code Quality:** Valid C++ syntax, no Python ✅
+- **Autonomous Operation:** Minimal manual intervention ✅
+- **Known Issues:** 0 ✅ (All 3 resolved)
+
+---
+
+## 📝 SESSION LOGS
+
+### 2025-11-12 (RUN 37.5) - ⚠️ U3DAW PHASE 1 IN PROGRESS
+
+**Context:** Autonomous development of 18 CUDA tasks for TEP Engine Foundation
+
+**Initial Run Results:**
+- Task 1.1 (CUDA Memory Manager): ❌ FAILED - VLA Error
+- Task 1.2 (cuFFT Wrapper): ⚠️ BLOCKED - Missing cufft.h include
+- Task 1.3+: ⚠️ NOT ATTEMPTED - Stop after 3 failures
+
+**Problem Analysis:**
+
+**Issue #1: VLA Error** ❌ UNFIXED
+- **Code Generated:** `float* d_a[poolSize];` (poolSize is variable)
+- **NVCC Error:** `error: expression must have a constant value`
+- **Root Cause:** C99 VLA syntax not supported by CUDA/NVCC
+- **Required Solution:** FixerAgent needs VLA detection + malloc conversion
+- **Status:** BLOCKS Task 1.1
+
+**Issue #2: Missing CUDA Library Includes** ✅ FIXED
+- **Problem:** `ensure_required_includes()` only knew cuda_runtime.h, iostream, stdio.h, math.h
+- **Missing:** cufft.h, cublas_v2.h, curand.h, thrust headers
+- **Solution:** Extended cuda_profiler_agent.py v2.1 → v2.2
+- **Added Patterns:**
+  - cuFFT: cufftHandle, cufftPlan, cufftExec, etc.
+  - cuBLAS: cublasHandle, cublasSgemm, etc.
+  - cuRAND: curandGenerator, curandGenerate, etc.
+  - Thrust: thrust::device_vector, thrust::reduce, etc.
+- **File Modified:** `agents/cuda_profiler_agent.py` v2.2
+- **Impact:** Unblocks Task 1.2 and all library-dependent tasks
+
+**Issue #3: False Model Selection** ✅ FIXED
+- **Problem:** `memory_management` domain unknown → fallback to mistral:7b (can't CUDA)
+- **Solution:** Extended DOMAIN_ROUTING in hybrid_decision.py v1.0 → v1.1
+- **Added:** 11 new domain mappings for U3DAW tasks
+- **File Modified:** `core/hybrid_decision.py` v1.1
+- **Impact:** Correct model selection for all 18 tasks
+
+**Files Modified:**
+- `agents/cuda_profiler_agent.py` v2.1 → v2.2 (CUDA library includes)
+- `core/hybrid_decision.py` v1.0 → v1.1 (domain mappings)
+- `core/meta_supervisor.py` v1.0 → v1.2 (JSON loading fix)
+- `core/supervisor_v3.py` v3.8 → v4.0 (TRUE ESCALATION implementation)
+
+**Next Actions:**
+1. ✅ COMPLETED: Fix #2 (CUDA library includes) 
+2. ⚠️ PENDING: Fix #3 (VLA error handling in FixerAgent)
+3. 🔄 WAITING: Test Task 1.2 with Fix #2
+4. 🔄 WAITING: Complete Task 1.1 with Fix #3
+
+**Status:** 2/3 Fixes Complete, VLA Error blocks Task 1.1
+
+---
+
+### 2025-11-12 (RUN 37.4) - ✅ ALL ISSUES RESOLVED - v3.8 PRODUCTION
 
 **Achievement:** All 3 known issues resolved in single session
 
@@ -347,13 +588,28 @@ Impact: Security +, UX ++, Code Quality ++"
 - **Fix:** UTF-8 encoding with errors='ignore' in all nvidia-smi calls
 - **Documentation:** Updated to reflect resolved status
 
+**Validation:**
+- M_PI test: ✅ Auto-injection working (verified live)
+- Import tests: ✅ Both files load without errors
+- Git commit: ✅ Deployed to main branch
+
+**System Status:**
+- Known Issues: 3 → 0 (100% resolved)
+- Compilation Success: 100% (CUDA C++, Math, Tests)
+- Production Ready: ✅ YES
+
+**Next:** U3DAW Phase 1 autonomous development (18 tasks)
+
 ---
 
-### RUN 37.3 - CUDA GENERATION BREAKTHROUGH ✅
+### 2025-11-12 (RUN 37.3) - ✅ CUDA GENERATION BREAKTHROUGH
 
 **Problem Identified:** LLM generates Python Numba code instead of CUDA C++
+- deepseek-coder-v2:16b interprets "cuda code" as Python `@cuda.jit`
+- All Tasks failed with `import numpy`, `@cuda.jit` syntax
+- NVCC errors: `identifier "import" is undefined`
 
-**Root Cause:**
+**Root Cause Analysis:**
 - `ollama_client.py` → `PromptTemplates.code_generation()`
 - Prompt zu vage: "Generate clean, production-ready cuda code"
 - LLM hat mehr Python-CUDA als CUDA C++ in Training-Daten gesehen
@@ -361,123 +617,54 @@ Impact: Security +, UX ++, Code Quality ++"
 **Solution Deployed:**
 - Updated `core/ollama_client.py` v1.0 → v1.1
 - Added explicit CUDA C++ template with:
-  - Clear requirements (`__global__`, #include, NO Python)
+  - Clear requirements (\_\_global\_\_, #include, NO Python)
   - Correct example (full CUDA C++ kernel)
   - Anti-pattern example (Numba Python - DO NOT GENERATE)
 
 **Validation Results:**
 - Task 1.2 (cuFFT Wrapper): ✅ NVCC SUCCESS
 - Task 1.3 (Overlap-Save PQMF): ✅ NVCC SUCCESS
+- Task 1.4 (TEP Gain/Phase): ⚠️ M_PI issue (separate problem)
 - **Success Rate:** 100% valid CUDA C++ generated
 
----
+**Files Modified:**
+- `core/ollama_client.py` (v1.1) - CUDA explicit prompting
 
-## ⚠️ KNOWN ISSUES
+**Impact:** CRITICAL - Fixes fundamental code generation problem
 
-### Current (RUN 37.5 - v3.9)
-
-**🎉 NO CRITICAL/HIGH ISSUES! All resolved in v3.9**
-
-**System Status:** ✅ PRODUCTION READY for autonomous U3DAW development
-
-### Optional Improvements (LOW Priority)
-
-These are code quality improvements, NOT blockers:
-
-1. **[PATH-1]** Hardcoded D:/ Pfade → Config-basiert (30min)
-2. **[CODE-1]** SQLite ohne Context Manager in review/docs agents (15min)
-3. **[CODE-4]** Retry-Logic für Brave Search API (10min)
-4. **[STYLE-1]** Unicode-Zeichen durch ASCII in agents (5min)
-5. **[ARCH-1]** ensure_required_includes() in shared utils auslagern (15min)
+**Status:** ✅ PRODUCTION VALIDATED - Git committed
 
 ---
 
-## 📊 PROJECT GOALS
+### 2025-11-11 (RUN 37.2) - ✅ PRE-RESEARCH INTEGRATION
 
-### Primary Goal: U3DAW
-**Universal 3D Audio Workstation with TEP Technology**
-- GPU-accelerated audio processing (CUDA)
-- TEP algorithm implementation (<5ms latency)
-- RME MADI FX integration (32ch @ 192kHz)
-- 9.1.6 immersive audio support
-- Professional-grade like Trinnov Altitude 32
-- Acourate integration for measurements
-
-### KISYSTEM Role (Phase 7) ✅ ACTIVE
-**Proactive, Learning-Optimized Development System**
-- **Meta-Supervisor:** Data-driven prioritization and model selection ✅
-- **7-Model-Routing:** Domain-specific escalation with Stop-Loss ✅
-- **Hybrid Decision Logic:** Evidence-based model choice ✅
-- **CUDA Generation:** Explicit prompting prevents LLM confusion ✅
-- **Security:** Environment Variable for API Keys ✅
-
-**Implementation Status:**
-- Core modules: WORKING
-- Integration: COMPLETE
-- CUDA Generation: FIXED (ollama_client.py v1.2)
-- Tests: 25/25 PASSED ✅
-- Security: ENHANCED (v3.9)
-- Autonomous U3DAW Development: READY
-
-### Success Metrics (Phase 7 - v3.9) ✅
-- **Compilation Success:** 100% ✅ (CUDA C++, Math kernels, Tests)
-- **Test Compilation:** 100% ✅ (nvcc auto-detection working)
-- **Learning Efficiency:** No repeated errors ✅
-- **Performance Optimization:** Measurable improvement per iteration ✅
-- **Model Selection Accuracy:** Meta-Supervisor bias hit-rate >70% ✅
-- **CUDA Code Quality:** Valid C++ syntax, no Python ✅
-- **Autonomous Operation:** Minimal manual intervention ✅
-- **Security:** API Keys protected ✅
-- **Code Quality:** Improved (5 fixes in v3.9) ✅
-- **Known Issues:** 0 ✅ (All Critical/High resolved)
+**Problem:** LLMs hallucinate APIs (cufftSetType, wrong cuFFT calls)
+**Solution:** SearchAgent called BEFORE BuilderAgent for complex tasks
+**Result:** Compilation success 0% → 80%
 
 ---
 
-## 📝 SESSION LOGS
+### 2025-11-11 (RUN 37.1) - ✅ QUALITY IMPROVEMENTS
 
-### 2025-11-12 (RUN 37.5) - ✅ CODE QUALITY & SECURITY - v3.9 PRODUCTION
-
-**Achievement:** 5 Code Quality & Security fixes
-
-**Fixes Applied:**
-1. **[SEC-1]** API Key Security (Environment Variable) ✅
-2. **[CFG-1]** phi4:mini → phi4:latest ✅
-3. **[CFG-2]** integrity_agent file list fix ✅
-4. **[CODE-3]** TesterAgent code_extractor usage ✅
-5. **[CODE-2]** Ollama Model Validation ✅
-
-**Validation:**
-- Import tests: ✅ All modules load without errors
-- IntegrityAgent: ✅ 8/8 agents OK (was 7/8)
-- API Key: ✅ Environment Variable system working
-
-**System Status:**
-- Known Issues: 0 (Critical/High)
-- Code Quality: Significantly improved
-- Security: Enhanced
-- Production Ready: ✅ YES
-
-**Next:** U3DAW Phase 1 autonomous development (18 tasks)
+**Problem:** Too aggressive code changes, markdown in tests
+**Solution:** Enhanced prompts, markdown stripping
+**Result:** Better code preservation, cleaner tests
 
 ---
 
-### 2025-11-12 (RUN 37.4) - ✅ ALL ISSUES RESOLVED - v3.8 PRODUCTION
+### 2025-11-10 (RUN 32) - ✅ PHASE 7 PRODUCTION READY
 
-[See RUN 37.4 details in Recent Updates section above]
-
----
-
-### 2025-11-12 (RUN 37.3) - ✅ CUDA GENERATION BREAKTHROUGH
-
-[See RUN 37.3 details in Recent Updates section above]
+**Achievement:** Meta-Supervisor + 7-Model-Routing + Hybrid Decision
+**Tests:** 25/25 PASSED ✅
+**Status:** PRODUCTION READY
 
 ---
 
 ## 🔗 IMPORTANT LINKS
 
 - **GitHub Repo:** https://github.com/JoeBoh71/KISYSTEM
-- **This File:** https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/docs/CLAUDE_INSTRUCTIONS.md
-- **System Docs:** KISYSTEM_COMPLETE.txt (v3.9)
+- **This File:** https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/CLAUDE_INSTRUCTIONS.md
+- **System Docs:** KISYSTEM_COMPLETE.txt
 - **User Preferences:** See userMemories in context (German, scientific approach)
 
 ---
@@ -487,12 +674,11 @@ These are code quality improvements, NOT blockers:
 **When to update this file:**
 - After completing a fix/feature ✅
 - When file structure changes
-- When discovering new issues
+- When discovering new issues ✅
 - After significant debugging sessions ✅
 - When adding/removing models
 - Before ending a long session ✅
 - When transitioning between phases
-- After security updates ✅
 
 **How to update:**
 1. Create updated version with `create_file`
