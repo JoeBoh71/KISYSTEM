@@ -3,7 +3,8 @@ KISYSTEM Ollama Client
 Real integration with Ollama models
 
 Author: Jörg Bohne
-Date: 2025-11-06
+Date: 2025-11-12
+Version: 1.1 - CUDA C++ explicit prompting added
 """
 
 import aiohttp
@@ -201,9 +202,100 @@ class PromptTemplates:
     
     @staticmethod
     def code_generation(task: str, language: str, context: Optional[str] = None) -> str:
-        """Template for code generation"""
+        """
+        Template for code generation with explicit CUDA C++ handling
         
-        prompt = f"""Generate clean, production-ready {language} code for the following task:
+        CRITICAL: CUDA/cu language gets explicit prompt to prevent Numba/CuPy confusion.
+        LLMs often interpret "cuda code" as Python Numba (@cuda.jit) or CuPy,
+        which causes nvcc compilation errors.
+        
+        Args:
+            task: Description of what to generate
+            language: Programming language (cuda/cu gets special treatment)
+            context: Optional additional context
+            
+        Returns:
+            Prompt string optimized for the target language
+        """
+        
+        # CUDA gets explicit treatment to prevent Numba/CuPy confusion
+        if language.lower() in ['cuda', 'cu']:
+            prompt = f"""Generate NATIVE CUDA C++ code (NOT Python, NOT Numba, NOT CuPy).
+
+Task: {task}
+
+CRITICAL REQUIREMENTS - READ CAREFULLY:
+1. Use __global__ void kernelName(...) for CUDA kernels
+2. Use __device__ for device-only functions
+3. Use #include <cuda_runtime.h> at the top
+4. Use #include <stdio.h> for printf
+5. Use cudaMalloc(), cudaMemcpy(), cudaFree() for memory management
+6. NO Python imports - no 'import numpy', no 'import cupy', no 'from numba'
+7. NO @cuda.jit decorators - that's Numba Python, NOT CUDA C++
+8. NO Python syntax at all - pure CUDA C++ only
+9. Use // for comments (NOT # unless it's a preprocessor directive like #include)
+10. Include error checking: cudaError_t err = cudaGetLastError()
+11. Include a main() function with proper CUDA initialization
+
+Example of CORRECT CUDA C++ kernel structure:
+```cuda
+#include <cuda_runtime.h>
+#include <stdio.h>
+
+__global__ void addKernel(float* a, float* b, float* c, int n) {{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {{
+        c[idx] = a[idx] + b[idx];
+    }}
+}}
+
+int main() {{
+    int n = 1024;
+    size_t size = n * sizeof(float);
+    
+    // Allocate device memory
+    float *d_a, *d_b, *d_c;
+    cudaMalloc(&d_a, size);
+    cudaMalloc(&d_b, size);
+    cudaMalloc(&d_c, size);
+    
+    // Launch kernel
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
+    addKernel<<<blocksPerGrid, threadsPerBlock>>>(d_a, d_b, d_c, n);
+    
+    // Check for errors
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {{
+        printf("CUDA error: %s\\n", cudaGetErrorString(err));
+    }}
+    
+    // Free memory
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_c);
+    
+    return 0;
+}}
+```
+
+THIS IS WRONG (Numba Python - DO NOT GENERATE):
+```python
+import numpy as np
+from numba import cuda
+
+@cuda.jit
+def kernel(array):
+    pos = cuda.grid(1)
+    array[pos] += 1
+```
+
+Now generate NATIVE CUDA C++ code (like the CORRECT example above) for:
+{task}
+"""
+        else:
+            # Standard prompt for other languages (Python, C++, etc.)
+            prompt = f"""Generate clean, production-ready {language} code for the following task:
 
 Task: {task}
 
