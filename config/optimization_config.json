@@ -1,177 +1,52 @@
 {
-  "meta_supervisor": {
+  "phase_7": {
     "enabled": true,
-    "learning_log_path": "D:/AGENT_MEMORY/learning_log.json",
-    "priority_weights": {
-      "success_rate": 0.5,
-      "time_since_last": 0.2,
-      "cumulative_failures": 0.2,
-      "risk_factor": 0.1
+    "meta_supervisor": {
+      "enabled": true,
+      "learning_log_path": "D:/AGENT_MEMORY/learning_log.json"
     },
-    "confidence_threshold": 0.5,
-    "min_samples_for_confidence": 5,
-    "description": "Meta-Supervisor aggregates historical data for data-driven prioritization"
-  },
-
-  "hybrid_decision": {
-    "enabled": true,
-    "weights": {
-      "meta": 0.40,
-      "complexity": 0.30,
-      "failure": 0.30
-    },
-    "stoploss": {
-      "max_failures_per_model": 2,
-      "max_failures_per_phase": {
-        "build": 2,
-        "test": 1,
-        "profile": 1
+    "hybrid_decision": {
+      "enabled": true,
+      "weights": {
+        "meta": 0.40,
+        "complexity": 0.30,
+        "failure": 0.30
       }
     },
-    "description": "Hybrid Decision Logic: 40% Meta + 30% Complexity + 30% Failure"
+    "model_routing": {
+      "stop_loss": 2,
+      "escalation_chains": {
+        "builder": ["deepseek-coder-v2:16b", "qwen2.5-coder:32b"],
+        "fixer": ["deepseek-coder-v2:16b", "qwen2.5:32b", "qwen2.5-coder:32b"],
+        "tester": ["phi4:latest", "qwen2.5-coder:32b"]
+      }
+    }
   },
-
-  "two_tier_profiling": {
-    "enabled": true,
-    "tier1": {
-      "name": "fast_feedback",
-      "tool": "nsys",
-      "duration_ms": 100,
-      "metrics": ["kernel_time", "memory_throughput"],
-      "timeout_seconds": 120,
-      "description": "Fast profiling for quick feedback, runs on every iteration"
-    },
-    "tier2": {
-      "name": "deep_analysis",
-      "tool": "nsys",
-      "duration_ms": 1000,
-      "metrics": [
-        "kernel_time",
-        "memory_throughput",
-        "warp_efficiency",
-        "occupancy",
-        "cache_hit_rate",
-        "instruction_throughput"
-      ],
-      "timeout_seconds": 900,
-      "description": "Deep profiling for detailed optimization, runs selectively"
-    },
-    "tier2_trigger": {
-      "performance_threshold": 0.85,
-      "iteration_count": 5,
-      "score_improvement": 10,
-      "description": "Trigger Tier2 when: score > 85% OR every 5 iterations OR >10 point improvement"
-    },
-    "estimated_time_savings": 0.45,
-    "description": "Two-Tier strategy reduces profiling time by 40-55%"
+  "testing": {
+    "mode": "python",
+    "framework": "kernel_tuner",
+    "fallback_to_cpp": false,
+    "validation": {
+      "enabled": true,
+      "check_output": true,
+      "min_execution_time_ms": 0.1,
+      "max_execution_time_ms": 10000
+    }
   },
-
+  "profiling": {
+    "two_tier": {
+      "enabled": false,
+      "fast_profile_probability": 0.7,
+      "deep_profile_threshold": 0.85
+    }
+  },
   "cost_aware_queue": {
-    "enabled": true,
-    "roi_formula": "priority / estimated_time",
-    "queue_strategy": "roi_descending",
-    "max_queue_size": 50,
-    "rebalance_interval_seconds": 300,
-    "description": "ROI-based task scheduling: execute high-priority short tasks first"
+    "enabled": false,
+    "roi_threshold": 1.5,
+    "max_cost_per_task": 1000
   },
-
   "async_io": {
-    "enabled": true,
-    "max_concurrent_builds": 4,
-    "max_concurrent_tests": 2,
-    "max_concurrent_profiles": 1,
-    "timeouts": {
-      "build_seconds": 300,
-      "test_seconds": 120,
-      "profile_tier1_seconds": 120,
-      "profile_tier2_seconds": 900
-    },
-    "description": "Parallel execution with non-blocking I/O"
-  },
-
-  "model_routing": {
-    "7_model_hierarchy": [
-      "llama3.1:8b",
-      "mistral:7b",
-      "phi4:latest",
-      "deepseek-coder-v2:16b",
-      "qwen2.5:32b",
-      "qwen2.5-coder:32b",
-      "deepseek-r1:32b"
-    ],
-    "cuda_blacklist": ["llama3.1:8b"],
-    "domain_preferences": {
-      "cuda_simple": ["deepseek-coder-v2:16b", "qwen2.5-coder:32b", "deepseek-r1:32b"],
-      "cuda_medium": ["deepseek-coder-v2:16b", "qwen2.5-coder:32b", "deepseek-r1:32b"],
-      "cuda_complex": ["qwen2.5-coder:32b", "deepseek-r1:32b", "deepseek-coder-v2:16b"],
-      "cpp": ["deepseek-coder-v2:16b", "qwen2.5-coder:32b", "deepseek-r1:32b"],
-      "asio": ["deepseek-coder-v2:16b", "qwen2.5-coder:32b", "qwen2.5:32b"],
-      "audio_dsp_simple": ["deepseek-coder-v2:16b", "qwen2.5-coder:32b", "deepseek-r1:32b"],
-      "audio_dsp_complex": ["qwen2.5-coder:32b", "deepseek-r1:32b", "deepseek-coder-v2:16b"],
-      "tests": ["phi4:latest", "mistral:7b", "deepseek-coder-v2:16b"],
-      "docs": ["phi4:latest", "mistral:7b", "qwen2.5:32b"],
-      "generic": ["mistral:7b", "qwen2.5:32b", "phi4:latest"]
-    },
-    "description": "7-Model-Routing with domain-specific escalation paths"
-  },
-
-  "learning": {
-    "enabled": true,
-    "log_path": "D:/AGENT_MEMORY/learning_log.json",
-    "memory_path": "D:/AGENT_MEMORY/solution_memory.json",
-    "auto_update_interval_seconds": 3600,
-    "retention_days": 90,
-    "description": "Continuous learning with automatic memory updates"
-  },
-
-  "performance_targets": {
-    "compilation_success_rate": 0.90,
-    "meta_supervisor_hit_rate": 0.70,
-    "two_tier_time_savings": 0.45,
-    "autonomous_operation_rate": 0.85,
-    "description": "Phase 7 success metrics"
-  },
-
-  "system_resources": {
-    "cpu_cores": 24,
-    "gpu_memory_gb": 12,
-    "ram_gb": 64,
-    "max_gpu_utilization": 0.80,
-    "max_ram_utilization": 0.75,
-    "description": "Hardware resource limits for task scheduling"
-  },
-
-  "error_handling": {
-    "retry_strategy": "hybrid",
-    "confidence_threshold_for_cache": 0.85,
-    "confidence_threshold_for_retry": 0.60,
-    "max_escalation_level": 6,
-    "search_agent_trigger": {
-      "unknown_error": true,
-      "repeated_failure": true,
-      "low_confidence": true
-    },
-    "description": "Hybrid error handling: cache > retry > escalate > search"
-  },
-
-  "logging": {
-    "level": "INFO",
-    "console_output": true,
-    "file_output": true,
-    "log_path": "D:/AGENT_MEMORY/kisystem.log",
-    "max_log_size_mb": 100,
-    "backup_count": 5,
-    "description": "Logging configuration"
-  },
-
-  "cache": {
-    "enabled": true,
-    "clear_before_test": true,
-    "python_bytecode_cache": false,
-    "description": "Cache management to prevent stale code execution"
-  },
-
-  "version": "7.0.0",
-  "last_updated": "2025-11-10",
-  "description": "KISYSTEM Phase 7 Optimization Configuration"
+    "enabled": false,
+    "max_parallel_builds": 3
+  }
 }

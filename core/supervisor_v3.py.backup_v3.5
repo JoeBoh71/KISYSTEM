@@ -15,39 +15,9 @@ RUN 37 Fixes (v3.6):
 - stdout+stderr capture for g++ errors (Line 780-793)
 - Full error output printing for debugging
 
-RUN 37.2 Improvements (v3.7):
-- Pre-Research: SearchAgent called BEFORE BuilderAgent for complex tasks
-- Task complexity analysis: simple/medium/complex detection
-- Search results integrated into BuilderAgent context
-- Prevents LLM hallucination of non-existent APIs
-
-RUN 37.3 Improvements (v3.8):
-- FixerAgent v2.6.1 validation result logging
-- Code size change tracking and warnings
-- Enhanced fix quality monitoring
-- Validation failure detection
-
-RUN 37.4 Improvements (v3.9):
-- FIX: ModelSelector API compatibility (removed task_type parameter)
-- FIX: Defensive config loading with type checks
-- FIX: MetaSupervisor path handling (string conversion)
-- IMPROVED: Better error messages and traceback on Phase 7 loading
-
-RUN 37.5 Improvements (v3.10):
-- FIX: MetaSupervisor expects Path object, not string
-- FIX: Extract model.name from ModelConfig object (BuilderAgent compatibility)
-- Both fixes critical for Phase 7 activation
-
-RUN 37.3 CRITICAL FIX (v3.11):
-- NVCC compile-only flag (-c): Prevents "entry point must be defined" linker errors
-- CUDA kernels now compile without needing main() function
-- Changed from: nvcc -o code.exe code.cu (full linking)
-- Changed to: nvcc -c -o code.obj code.cu (compile-only)
-- This eliminates the #1 cause of initial compilation failures
-
 Author: Jörg Bohne
-Date: 2025-11-12
-Version: 3.11 (Phase 7 + RUN 37.3 NVCC Fix - PRODUCTION READY)
+Date: 2025-11-11
+Version: 3.6 (Phase 7 + RUN 37 Fixes)
 """
 
 import asyncio
@@ -137,35 +107,16 @@ class SupervisorV3:
             try:
                 self.optimization_config = self._load_optimization_config(optimization_config_path)
                 
-                # Defensive check
-                if not isinstance(self.optimization_config, dict):
-                    raise TypeError(f"Config must be dict, got {type(self.optimization_config)}")
-                
-                # Check meta_supervisor section
-                meta_config = self.optimization_config.get('meta_supervisor', {})
-                if not isinstance(meta_config, dict):
-                    raise TypeError(f"meta_supervisor config must be dict, got {type(meta_config)}")
-                
-                if meta_config.get('enabled', False):
+                if self.optimization_config.get('meta_supervisor', {}).get('enabled', False):
                     # Initialize Meta-Supervisor
-                    learning_log_path_str = meta_config.get('learning_log_path', '')
-                    if not learning_log_path_str:
-                        print("[Supervisor V3] ⚠ learning_log_path is empty in config")
+                    learning_log_path = Path(self.optimization_config['meta_supervisor']['learning_log_path'])
+                    if learning_log_path.exists():
+                        self.meta_supervisor = MetaSupervisor(learning_log_path)
+                        print("[Supervisor V3] ✓ Meta-Supervisor initialized")
                     else:
-                        learning_log_path = Path(learning_log_path_str)
-                        if learning_log_path.exists():
-                            # MetaSupervisor expects Path object, not string
-                            self.meta_supervisor = MetaSupervisor(learning_log_path)
-                            print("[Supervisor V3] ✓ Meta-Supervisor initialized")
-                        else:
-                            print(f"[Supervisor V3] ⚠ Learning log not found: {learning_log_path}")
+                        print(f"[Supervisor V3] ⚠ Learning log not found: {learning_log_path}")
                 
-                # Check hybrid_decision section
-                hybrid_config = self.optimization_config.get('hybrid_decision', {})
-                if not isinstance(hybrid_config, dict):
-                    raise TypeError(f"hybrid_decision config must be dict, got {type(hybrid_config)}")
-                    
-                if hybrid_config.get('enabled', False):
+                if self.optimization_config.get('hybrid_decision', {}).get('enabled', False):
                     # Initialize Hybrid Decision Logic
                     self.hybrid_decision = HybridDecision(meta_supervisor=self.meta_supervisor)
                     print("[Supervisor V3] ✓ Hybrid Decision Logic initialized")
@@ -175,9 +126,6 @@ class SupervisorV3:
                 
             except Exception as e:
                 print(f"[Supervisor V3] ⚠ Failed to load Phase 7 config: {e}")
-                print(f"[Supervisor V3] Error type: {type(e).__name__}")
-                import traceback
-                traceback.print_exc()
                 print("[Supervisor V3] Falling back to Phase 6 mode")
         
         # Fallback: Model selector for all agents (Phase 6 mode)
@@ -218,89 +166,6 @@ class SupervisorV3:
         print(f"[Supervisor V3] Workspace: {self.workspace}")
         print(f"[Supervisor V3] Max iterations: {max_iterations}")
         print(f"[Supervisor V3] Phase 7: {'ENABLED' if self.phase7_enabled else 'DISABLED'}")
-    
-    def _analyze_task_complexity(self, task: str, language: str) -> str:
-        """
-        Analyze task complexity based on keywords and language.
-        
-        Args:
-            task: Task description
-            language: Programming language
-            
-        Returns:
-            Complexity level: 'simple', 'medium', 'complex'
-        """
-        task_lower = task.lower()
-        
-        # Complex indicators
-        complex_keywords = [
-            'fft', 'pqmf', 'filter', 'convolution', 'optimization',
-            'multi-stage', 'real-time', 'parallel', 'distributed',
-            'advanced', 'sophisticated', 'frequency domain'
-        ]
-        
-        # Medium indicators  
-        medium_keywords = [
-            'algorithm', 'processing', 'transform', 'compute',
-            'analysis', 'implementation'
-        ]
-        
-        # Count keyword matches
-        complex_count = sum(1 for kw in complex_keywords if kw in task_lower)
-        medium_count = sum(1 for kw in medium_keywords if kw in task_lower)
-        
-        # CUDA is generally complex
-        if language.lower() == 'cuda':
-            if complex_count > 0:
-                return 'complex'
-            elif medium_count > 0 or len(task.split()) > 15:
-                return 'complex'
-            else:
-                return 'medium'
-        
-        # Other languages
-        if complex_count >= 2:
-            return 'complex'
-        elif complex_count >= 1 or medium_count >= 2:
-            return 'medium'
-        else:
-            return 'simple'
-    
-    async def _pre_research(self, task: str, language: str) -> Optional[str]:
-        """
-        Perform pre-research for complex tasks using SearchAgent.
-        
-        Args:
-            task: Task description
-            language: Programming language
-            
-        Returns:
-            Search results or None if no SearchAgent available
-        """
-        if not self.search:
-            return None
-        
-        print(f"\n[Supervisor V3] 🔍 Pre-Research for complex task...")
-        
-        # Build search query from task + language
-        search_query = f"{task} {language} implementation example"
-        
-        # Add language-specific terms
-        if language.lower() == 'cuda':
-            search_query += " cuFFT CUDA API"
-        elif language.lower() in ['c++', 'cpp']:
-            search_query += " C++ standard library"
-        elif language.lower() == 'python':
-            search_query += " Python best practices"
-        
-        try:
-            results = await self.search.search(search_query, context=task)
-            print(f"[Supervisor V3] ✓ Pre-research completed ({len(results)} chars)")
-            return results
-        except Exception as e:
-            print(f"[Supervisor V3] ✗ Pre-research failed: {e}")
-            return None
-    
     
     def _load_optimization_config(self, config_path: Path) -> Dict:
         """Load optimization config from JSON file."""
@@ -370,20 +235,13 @@ class SupervisorV3:
                 self.stats["fallback_to_phase6"] += 1
         
         # Phase 6: Use ModelSelector (Fallback)
-        # ModelSelector.select_model() expects: (domain, complexity, language)
-        # NOT task_type!
-        model_config = self.model_selector.select_model(
-            domain or "generic",
-            "medium"  # Default complexity
+        model = self.model_selector.select_model(
+            task_type=phase,
+            domain=domain or "generic",
+            complexity="medium"
         )
         
-        # Extract model name from ModelConfig object
-        if hasattr(model_config, 'name'):
-            model = model_config.name
-        else:
-            model = str(model_config)  # Fallback
-        
-        print(f"[Supervisor V3] Phase 6 Model Selection: {model} (for {phase}/{domain})")
+        print(f"[Supervisor V3] Phase 6 Model Selection: {model} (for {phase})")
         
         return model
     
@@ -475,20 +333,6 @@ class SupervisorV3:
             print(f"\n{'='*70}")
             print(f"[Supervisor V3] PHASE 1: BUILD")
             print(f"{'='*70}\n")
-            
-            # RUN 37.2: Pre-Research for complex tasks
-            complexity = self._analyze_task_complexity(task, language)
-            print(f"[Supervisor V3] Task complexity: {complexity}")
-            
-            if complexity == 'complex' and self.search:
-                search_results = await self._pre_research(task, language)
-                if search_results:
-                    # Add to context for BuilderAgent
-                    if context is None:
-                        context = {}
-                    context['search_results'] = search_results
-                    context['has_search_results'] = True
-                    print(f"[Supervisor V3] ✓ Search results added to context")
             
             iteration += 1
             result["iterations"] = iteration
@@ -656,23 +500,6 @@ class SupervisorV3:
                     continue
                 
                 current_code = fix_result["fixed_code"]
-                
-                # V3.8: Log FixerAgent v2.6.1 validation results
-                if 'escalation_level' in fix_result:
-                    old_size = len(build_result.get('code', ''))
-                    new_size = len(current_code)
-                    size_change = ((new_size / old_size) - 1) * 100 if old_size > 0 else 0
-                    
-                    print(f"[Supervisor V3] Fix Result (iteration {iteration}):")
-                    print(f"  Model: {fix_result.get('model_used', 'unknown')} (escalation level {fix_result.get('escalation_level', 0)})")
-                    print(f"  Code size: {old_size} → {new_size} chars ({size_change:+.1f}%)")
-                    
-                    # Warnings
-                    if abs(size_change) > 20:
-                        print(f"  ⚠️  WARNING: Code size changed {abs(size_change):.1f}% (>20% threshold)")
-                    if size_change < -15:
-                        print(f"  ⚠️  WARNING: Code shrank {abs(size_change):.1f}% (likely deleted code)")
-                
                 result["models_used"].append(fix_result["model_used"])
                 result["timeline"].append({
                     "phase": "fix",
@@ -869,23 +696,18 @@ class SupervisorV3:
             
             # STEP 1: Compile main code
             if compile_with_nvcc:
-                # CUDA compilation with nvcc (compile-only, no linking)
+                # CUDA compilation with nvcc
                 print(f"[Supervisor V3] Compiling CUDA code with nvcc...")
-                
-                # RUN 37.3 Fix: Use -c flag (compile-only) to avoid linker errors
-                # CUDA kernels don't need main() function or linking
-                obj_file = temp_dir / 'code.obj'
                 
                 compile_cmd = [
                     'nvcc',
-                    '-c',  # Compile-only flag - prevents "entry point must be defined" error
                     '-arch=sm_89',  # RTX 4070
                     '-O3',
                     '--use_fast_math',
                     '-Xcompiler', '/EHsc',  # Windows: Enable C++ exceptions
-                    '-o', str(obj_file),
-                    str(code_file)
-                    # No linking libraries needed for compile-only
+                    '-o', str(temp_dir / 'code.exe'),
+                    str(code_file),
+                    '-lcufft', '-lcublas', '-lcusparse'  # Link CUDA libraries
                 ]
                 
                 result = subprocess.run(

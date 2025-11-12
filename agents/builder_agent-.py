@@ -1,14 +1,10 @@
 """
-KISYSTEM BuilderAgent - Phase 5 Complete + CUDA Syntax Fix
+KISYSTEM BuilderAgent - Phase 5 Complete
 Enhanced with Smart Model Routing + Auto-Dependency Management
 
-NEW in v2.1 (2025-11-12):
-- ✅ CUDA syntax validation (# → // comments)
-- ✅ Prevents nvcc C1021 errors at source
-
 Author: Jörg Bohne  
-Date: 2025-11-12
-Version: 2.1
+Date: 2025-11-06
+Version: 2.0
 """
 
 import asyncio
@@ -54,55 +50,6 @@ class BuilderAgent:
         self.learning = learning_module
         
         print("[BuilderAgent] ✓ Initialized with Smart Routing + Auto-Dependencies")
-    
-    def _validate_cuda_syntax(self, code: str, language: str) -> str:
-        """
-        Validate and fix CUDA syntax issues.
-        
-        LLMs often generate # comments in CUDA code, causing nvcc errors.
-        This converts invalid # comments to // comments while preserving
-        valid preprocessor directives.
-        
-        Args:
-            code: Generated code
-            language: Programming language
-            
-        Returns:
-            Code with fixed CUDA syntax
-        """
-        if language.lower() not in ['cuda', 'cu', 'cpp', 'c++', 'c']:
-            return code
-        
-        lines = code.split('\n')
-        fixed_lines = []
-        fixed_count = 0
-        
-        # Valid preprocessor directives
-        valid_directives = (
-            '#include', '#define', '#pragma', '#ifndef', 
-            '#ifdef', '#endif', '#if', '#else', '#elif', '#undef'
-        )
-        
-        for line in lines:
-            stripped = line.lstrip()
-            
-            # Preserve valid preprocessor directives
-            if stripped.startswith(valid_directives):
-                fixed_lines.append(line)
-                continue
-            
-            # Convert invalid # comments to // comments
-            if stripped.startswith('#'):
-                fixed_line = line.replace('#', '//', 1)
-                fixed_lines.append(fixed_line)
-                fixed_count += 1
-            else:
-                fixed_lines.append(line)
-        
-        if fixed_count > 0:
-            print(f"[BuilderAgent] ✓ Fixed {fixed_count} CUDA syntax issues (# → //)")
-        
-        return '\n'.join(fixed_lines)
     
     async def build(
         self, 
@@ -346,9 +293,6 @@ class BuilderAgent:
                     print(f"[BuilderAgent] ✓ Auto-added {len(added_includes)} includes:")
                     for inc in added_includes:
                         print(f"[BuilderAgent]   • {inc}")
-                
-                # VALIDATE CUDA SYNTAX (fix # comments)
-                code = self._validate_cuda_syntax(code, language)
             
             return code
             

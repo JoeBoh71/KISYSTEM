@@ -1,0 +1,82 @@
+{
+  "phase": 1,
+  "name": "TEP Engine",
+  "duration_weeks": 12,
+  "tasks": [
+    {
+      "id": "1.1",
+      "name": "Linkwitz-Riley Filters",
+      "agents": [
+        "SearchAgent",
+        "MathAgent",
+        "CodeAgent"
+      ],
+      "estimated_days": 2,
+      "status": "completed",
+      "priority": "HIGH"
+    },
+    {
+      "id": "1.2",
+      "name": "cuFFT Wrapper",
+      "agents": [
+        "CodeAgent"
+      ],
+      "estimated_days": 0.5,
+      "status": "completed",
+      "priority": "HIGH"
+    },
+    {
+      "id": "1.3",
+      "name": "Overlap-Save Algorithm",
+      "agents": [
+        "SearchAgent",
+        "CodeAgent"
+      ],
+      "estimated_days": 1,
+      "status": "completed",
+      "priority": "HIGH"
+    },
+    {
+      "id": "1.4",
+      "name": "Unit Tests Setup",
+      "agents": [
+        "TestAgent"
+      ],
+      "estimated_days": 1,
+      "status": "completed",
+      "priority": "HIGH"
+    },
+    {
+      "id": "1.5",
+      "name": "Amplitude Gain Operator",
+      "agents": [
+        "CodeAgent"
+      ],
+      "estimated_days": 1,
+      "status": "pending",
+      "priority": "MEDIUM"
+    },
+    {
+      "id": "1.6",
+      "name": "Phase Shift Operator",
+      "agents": [
+        "CodeAgent"
+      ],
+      "estimated_days": 1,
+      "status": "pending",
+      "priority": "MEDIUM"
+    },
+    {
+      "id": "1.7",
+      "name": "Psychoacoustic SMR",
+      "agents": [
+        "SearchAgent",
+        "MathAgent",
+        "CodeAgent"
+      ],
+      "estimated_days": 2,
+      "status": "pending",
+      "priority": "MEDIUM"
+    }
+  ]
+}
