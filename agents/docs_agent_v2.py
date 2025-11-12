@@ -2,7 +2,7 @@
 DocsAgent - Production-Ready Documentation Agent
 Model: mistral:7b
 Purpose: Technical documentation, API docs, README generation
-Memory: D:\AGENT_MEMORY with SQLite persistence
+Memory: D:\\\\AGENT_MEMORY with SQLite persistence
 """
 
 import asyncio

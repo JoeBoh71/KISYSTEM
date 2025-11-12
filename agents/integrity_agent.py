@@ -17,7 +17,6 @@ from typing import List, Dict
 AGENT_FILES = [
     "builder_agent.py",
     "fixer_agent.py",
-    "fixer_agent_v3.py",
     "tester_agent.py",
     "cuda_profiler_agent.py",
     "search_agent_v2.py",

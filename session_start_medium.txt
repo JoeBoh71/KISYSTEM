@@ -1,8 +1,0 @@
-KISYSTEM V3.0 - Continue Development
-
-Repository: https://github.com/JoeBoh71/KISYSTEM
-Instructions: https://raw.githubusercontent.com/JoeBoh71/KISYSTEM/main/CLAUDE_INSTRUCTIONS.md
-
-Status: RUN 31, Production Ready
-
-Nächstes Ziel: [TASK]

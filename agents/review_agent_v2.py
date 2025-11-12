@@ -2,7 +2,7 @@
 ReviewAgent - Production-Ready Code Review Agent
 Model: llama3.1:8b
 Purpose: Code review, architecture validation, best practices enforcement
-Memory: D:\AGENT_MEMORY with SQLite persistence
+Memory: D:\\\\AGENT_MEMORY with SQLite persistence
 """
 
 import asyncio

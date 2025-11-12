@@ -1,0 +1,5 @@
+{
+    "brave_search_api_key": "YOUR_BRAVE_API_KEY_HERE",
+    "search_engine": "brave",
+    "_comment": "SECURITY: Set actual API key via environment variable BRAVE_API_KEY"
+}

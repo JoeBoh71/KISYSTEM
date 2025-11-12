@@ -27,7 +27,7 @@
     {
       "id": "tester",
       "name": "Tester Agent",
-      "model": "phi4:mini",
+      "model": "phi4:latest",
       "temperature": 0.1,
       "trust_level": "high",
       "capabilities": ["run_tests", "analyze_performance"],

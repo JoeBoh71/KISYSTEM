@@ -60,6 +60,15 @@ class OllamaClient:
             Generated text response
         """
         
+        # CRITICAL: Check if model exists before attempting generation
+        # Prevents waiting full timeout (up to 30min) for non-existent model
+        model_available = await self.check_model(model)
+        if not model_available:
+            raise ValueError(
+                f"Model '{model}' not available in Ollama. "
+                f"Run 'ollama list' to see available models."
+            )
+        
         # Build request
         request_data = {
             "model": model,
@@ -119,6 +128,14 @@ class OllamaClient:
         Returns:
             Assistant's response
         """
+        
+        # Check if model exists
+        model_available = await self.check_model(model)
+        if not model_available:
+            raise ValueError(
+                f"Model '{model}' not available in Ollama. "
+                f"Run 'ollama list' to see available models."
+            )
         
         request_data = {
             "model": model,

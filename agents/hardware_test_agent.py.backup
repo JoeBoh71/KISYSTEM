@@ -20,7 +20,7 @@ import platform
 # Add core to path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'core'))
 
-from learning_module_v2 import LearningModuleV2
+from learning_module import LearningModule
 
 
 class HardwareTestAgent:
@@ -55,7 +55,7 @@ class HardwareTestAgent:
         self.supervisor = supervisor
         
         # Initialize Learning Module V2
-        self.learning = LearningModuleV2()
+        self.learning = LearningModule()
         
         self.model = "llama3.1:8b"  # Fast model for reporting
         

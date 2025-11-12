@@ -1,0 +1,42 @@
+[
+  {
+    "module": "builder_agent",
+    "ok": true,
+    "error": null
+  },
+  {
+    "module": "fixer_agent",
+    "ok": true,
+    "error": null
+  },
+  {
+    "module": "tester_agent",
+    "ok": true,
+    "error": null
+  },
+  {
+    "module": "cuda_profiler_agent",
+    "ok": true,
+    "error": null
+  },
+  {
+    "module": "search_agent_v2",
+    "ok": true,
+    "error": null
+  },
+  {
+    "module": "review_agent_v2",
+    "ok": true,
+    "error": null
+  },
+  {
+    "module": "docs_agent_v2",
+    "ok": true,
+    "error": null
+  },
+  {
+    "module": "hardware_test_agent",
+    "ok": true,
+    "error": null
+  }
+]

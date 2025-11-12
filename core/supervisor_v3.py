@@ -72,7 +72,7 @@ try:
     PHASE7_AVAILABLE = True
 except ImportError:
     PHASE7_AVAILABLE = False
-    print("[Supervisor V3] ⚠ Phase 7 modules not available - using Phase 6 mode")
+    print("[Supervisor V3] WARNING Phase 7 modules not available - using Phase 6 mode")
 
 
 class SupervisorV3:
@@ -150,15 +150,15 @@ class SupervisorV3:
                     # Initialize Meta-Supervisor
                     learning_log_path_str = meta_config.get('learning_log_path', '')
                     if not learning_log_path_str:
-                        print("[Supervisor V3] ⚠ learning_log_path is empty in config")
+                        print("[Supervisor V3] WARNING learning_log_path is empty in config")
                     else:
                         learning_log_path = Path(learning_log_path_str)
                         if learning_log_path.exists():
                             # MetaSupervisor expects Path object, not string
                             self.meta_supervisor = MetaSupervisor(learning_log_path)
-                            print("[Supervisor V3] ✓ Meta-Supervisor initialized")
+                            print("[Supervisor V3] OK Meta-Supervisor initialized")
                         else:
-                            print(f"[Supervisor V3] ⚠ Learning log not found: {learning_log_path}")
+                            print(f"[Supervisor V3] WARNING Learning log not found: {learning_log_path}")
                 
                 # Check hybrid_decision section
                 hybrid_config = self.optimization_config.get('hybrid_decision', {})
@@ -168,13 +168,13 @@ class SupervisorV3:
                 if hybrid_config.get('enabled', False):
                     # Initialize Hybrid Decision Logic
                     self.hybrid_decision = HybridDecision(meta_supervisor=self.meta_supervisor)
-                    print("[Supervisor V3] ✓ Hybrid Decision Logic initialized")
+                    print("[Supervisor V3] OK Hybrid Decision Logic initialized")
                 
                 self.phase7_enabled = True
-                print("[Supervisor V3] ✓ Phase 7 Optimization ENABLED")
+                print("[Supervisor V3] OK Phase 7 Optimization ENABLED")
                 
             except Exception as e:
-                print(f"[Supervisor V3] ⚠ Failed to load Phase 7 config: {e}")
+                print(f"[Supervisor V3] WARNING Failed to load Phase 7 config: {e}")
                 print(f"[Supervisor V3] Error type: {type(e).__name__}")
                 import traceback
                 traceback.print_exc()
@@ -214,7 +214,7 @@ class SupervisorV3:
         # Domain tracking for consistency across phases (Phase 7)
         self.current_domain = None
         
-        print("[Supervisor V3] ✓ Initialized")
+        print("[Supervisor V3] OK Initialized")
         print(f"[Supervisor V3] Workspace: {self.workspace}")
         print(f"[Supervisor V3] Max iterations: {max_iterations}")
         print(f"[Supervisor V3] Phase 7: {'ENABLED' if self.phase7_enabled else 'DISABLED'}")
@@ -295,10 +295,10 @@ class SupervisorV3:
         
         try:
             results = await self.search.search(search_query, context=task)
-            print(f"[Supervisor V3] ✓ Pre-research completed ({len(results)} chars)")
+            print(f"[Supervisor V3] OK Pre-research completed ({len(results)} chars)")
             return results
         except Exception as e:
-            print(f"[Supervisor V3] ✗ Pre-research failed: {e}")
+            print(f"[Supervisor V3] FAIL Pre-research failed: {e}")
             return None
     
     
@@ -307,10 +307,10 @@ class SupervisorV3:
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-            print(f"[Supervisor V3] ✓ Loaded optimization config: {config_path}")
+            print(f"[Supervisor V3] OK Loaded optimization config: {config_path}")
             return config
         except Exception as e:
-            print(f"[Supervisor V3] ✗ Failed to load config: {e}")
+            print(f"[Supervisor V3] FAIL Failed to load config: {e}")
             return {}
     
     def _select_model_for_phase(
@@ -365,7 +365,7 @@ class SupervisorV3:
                 return decision.selected_model
                 
             except Exception as e:
-                print(f"[Supervisor V3] ⚠ Phase 7 decision failed: {e}")
+                print(f"[Supervisor V3] WARNING Phase 7 decision failed: {e}")
                 print("[Supervisor V3] Falling back to Phase 6 ModelSelector")
                 self.stats["fallback_to_phase6"] += 1
         
@@ -410,12 +410,12 @@ class SupervisorV3:
         if success:
             # Clear failure history on success
             self.hybrid_decision.clear_failures(domain)
-            print(f"[Supervisor V3] ✓ Success recorded: {domain} / {model}")
+            print(f"[Supervisor V3] OK Success recorded: {domain} / {model}")
         else:
             # Record failure for Stop-Loss
             self.hybrid_decision.record_failure(domain, model)
             self.stats["model_escalations"] += 1
-            print(f"[Supervisor V3] ⚠ Failure recorded: {domain} / {model}")
+            print(f"[Supervisor V3] WARNING Failure recorded: {domain} / {model}")
     
     async def execute_task(
         self,
@@ -488,7 +488,7 @@ class SupervisorV3:
                         context = {}
                     context['search_results'] = search_results
                     context['has_search_results'] = True
-                    print(f"[Supervisor V3] ✓ Search results added to context")
+                    print(f"[Supervisor V3] OK Search results added to context")
             
             iteration += 1
             result["iterations"] = iteration
@@ -525,7 +525,7 @@ class SupervisorV3:
             
             self._record_phase_outcome('build', build_model, self.current_domain or domain or 'generic', success=True)
             
-            print(f"[Supervisor V3] ✓ Build phase completed")
+            print(f"[Supervisor V3] OK Build phase completed")
             print(f"[Supervisor V3] Code: {len(current_code)} characters")
             
             # PHASE 2: TEST
@@ -566,7 +566,7 @@ class SupervisorV3:
             
             self._record_phase_outcome('test', test_model, self.current_domain or domain or 'generic', success=True)
             
-            print(f"[Supervisor V3] ✓ Test phase completed")
+            print(f"[Supervisor V3] OK Test phase completed")
             print(f"[Supervisor V3] Tests: {len(current_tests)} characters")
             
             # PHASE 3: VALIDATE (run tests)
@@ -669,9 +669,9 @@ class SupervisorV3:
                     
                     # Warnings
                     if abs(size_change) > 20:
-                        print(f"  ⚠️  WARNING: Code size changed {abs(size_change):.1f}% (>20% threshold)")
+                        print(f"  WARNING  WARNING: Code size changed {abs(size_change):.1f}% (>20% threshold)")
                     if size_change < -15:
-                        print(f"  ⚠️  WARNING: Code shrank {abs(size_change):.1f}% (likely deleted code)")
+                        print(f"  WARNING  WARNING: Code shrank {abs(size_change):.1f}% (likely deleted code)")
                 
                 result["models_used"].append(fix_result["model_used"])
                 result["timeline"].append({
@@ -720,7 +720,7 @@ class SupervisorV3:
             result["tests"] = current_tests
             
             print(f"\n{'='*70}")
-            print(f"[Supervisor V3] ⚠️ MAX ITERATIONS REACHED")
+            print(f"[Supervisor V3] WARNING MAX ITERATIONS REACHED")
             print(f"{'='*70}\n")
             
             self.stats["tasks_failed"] += 1
@@ -864,8 +864,8 @@ class SupervisorV3:
             code_file.write_text(code, encoding='utf-8')
             test_file.write_text(tests, encoding='utf-8')
             
-            print(f"[Supervisor V3] ✓ Wrote code: {code_file.name} ({len(code)} chars)")
-            print(f"[Supervisor V3] ✓ Wrote tests: {test_file.name} ({len(tests)} chars)")
+            print(f"[Supervisor V3] OK Wrote code: {code_file.name} ({len(code)} chars)")
+            print(f"[Supervisor V3] OK Wrote tests: {test_file.name} ({len(tests)} chars)")
             
             # STEP 1: Compile main code
             if compile_with_nvcc:
@@ -904,7 +904,7 @@ class SupervisorV3:
                         error_output = "Unknown NVCC compilation error (no output)"
                     
                     errors.append(f"NVCC compilation failed:\n{error_output}")
-                    print(f"[Supervisor V3] ✗ NVCC compilation failed")
+                    print(f"[Supervisor V3] FAIL NVCC compilation failed")
                     print(f"[Supervisor V3] Error output ({len(error_output)} chars):")
                     print(error_output[:500] if len(error_output) > 500 else error_output)
                     return {
@@ -913,7 +913,7 @@ class SupervisorV3:
                         "output": error_output
                     }
                 
-                print(f"[Supervisor V3] ✓ NVCC compilation successful")
+                print(f"[Supervisor V3] OK NVCC compilation successful")
             
             # STEP 2: Compile and run tests
             if language.lower() == 'python':
@@ -945,7 +945,7 @@ class SupervisorV3:
                     ]
                     test_has_cuda = any(indicator in test_content for indicator in cuda_indicators)
                 except Exception as e:
-                    print(f"[Supervisor V3] ⚠️ Could not read test file: {e}")
+                    print(f"[Supervisor V3] WARNING Could not read test file: {e}")
                 
                 # Determine compiler
                 if test_has_cuda or compile_with_nvcc:
@@ -996,7 +996,7 @@ class SupervisorV3:
                         error_output = f"Unknown {compiler_name} compilation error (no output)"
                     
                     errors.append(f"Test compilation failed ({compiler_name}):\n{error_output}")
-                    print(f"[Supervisor V3] ✗ Test compilation failed ({compiler_name})")
+                    print(f"[Supervisor V3] FAIL Test compilation failed ({compiler_name})")
                     print(f"[Supervisor V3] Error output ({len(error_output)} chars):")
                     print(error_output[:500] if len(error_output) > 500 else error_output)
                     return {
@@ -1005,7 +1005,7 @@ class SupervisorV3:
                         "output": error_output
                     }
                 
-                print(f"[Supervisor V3] ✓ Test compilation successful")
+                print(f"[Supervisor V3] OK Test compilation successful")
                 
                 # Run tests
                 test_cmd = [str(temp_dir / 'test.exe')]
@@ -1026,7 +1026,7 @@ class SupervisorV3:
             if result.returncode != 0:
                 # Tests failed
                 errors.append(f"Tests failed:\n{output_text}")
-                print(f"[Supervisor V3] ✗ Tests failed (returncode={result.returncode})")
+                print(f"[Supervisor V3] FAIL Tests failed (returncode={result.returncode})")
                 print(f"[Supervisor V3] Output:\n{output_text[:500]}")
                 
                 return {
@@ -1047,7 +1047,7 @@ class SupervisorV3:
             
         except subprocess.TimeoutExpired:
             errors.append("Validation timeout (compilation or test execution took >60s)")
-            print(f"[Supervisor V3] ✗ Timeout")
+            print(f"[Supervisor V3] FAIL Timeout")
             return {
                 "passed": False,
                 "errors": errors,
@@ -1057,7 +1057,7 @@ class SupervisorV3:
         except FileNotFoundError as e:
             # nvcc or g++ not found
             errors.append(f"Compiler not found: {e}. Please ensure nvcc and g++ are in PATH.")
-            print(f"[Supervisor V3] ✗ Compiler not found: {e}")
+            print(f"[Supervisor V3] FAIL Compiler not found: {e}")
             return {
                 "passed": False,
                 "errors": errors,
@@ -1066,7 +1066,7 @@ class SupervisorV3:
             
         except Exception as e:
             errors.append(f"Validation error: {str(e)}")
-            print(f"[Supervisor V3] ✗ Validation error: {e}")
+            print(f"[Supervisor V3] FAIL Validation error: {e}")
             import traceback
             traceback.print_exc()
             return {
@@ -1142,9 +1142,9 @@ class SupervisorV3:
                     "phase7_enabled": self.phase7_enabled
                 }
             )
-            print("[Supervisor V3] ✓ Stored in learning database")
+            print("[Supervisor V3] OK Stored in learning database")
         except Exception as e:
-            print(f"[Supervisor V3] ⚠️ Failed to store in learning: {e}")
+            print(f"[Supervisor V3] WARNING Failed to store in learning: {e}")
     
     def get_stats(self) -> Dict:
         """Get supervisor statistics"""

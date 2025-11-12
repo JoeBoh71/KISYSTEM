@@ -332,20 +332,9 @@ Tests:"""
             )
             
             # CRITICAL: Strip markdown code blocks that LLMs often add
-            # RUN 37 Fix - remove ```cpp, ```python, etc.
-            tests_clean = tests.strip()
-            
-            # Remove markdown code fences
-            if tests_clean.startswith('```'):
-                # Find first newline after opening fence
-                first_newline = tests_clean.find('\n')
-                if first_newline > 0:
-                    # Remove opening fence line
-                    tests_clean = tests_clean[first_newline + 1:]
-                
-                # Remove closing fence
-                if tests_clean.endswith('```'):
-                    tests_clean = tests_clean[:-3].rstrip()
+            # RUN 37.1 Fix - Use code_extractor for consistent handling
+            from code_extractor import extract_code
+            tests_clean = extract_code(tests.strip())
             
             return tests_clean
             

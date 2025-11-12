@@ -49,15 +49,24 @@ class SearchAgent:
         # Initialize Learning Module V2
         self.learning = LearningModuleV2()
         
-        # Load Brave API key
-        config_path = Path(__file__).parent.parent / 'config' / 'api_keys.json'
-        try:
-            with open(config_path) as f:
-                config = json.load(f)
-                self.api_key = config.get('brave_search_api_key')
-        except Exception as e:
-            print(f"[Search] ⚠️ Could not load API key: {e}")
-            self.api_key = None
+        # Load Brave API key - Priority: Environment Variable > Config File
+        import os
+        self.api_key = os.environ.get('BRAVE_API_KEY')
+        
+        if not self.api_key:
+            # Fallback: Load from config file
+            config_path = Path(__file__).parent.parent / 'config' / 'api_keys.json'
+            try:
+                with open(config_path) as f:
+                    config = json.load(f)
+                    key_from_config = config.get('brave_search_api_key')
+                    if key_from_config and key_from_config != 'YOUR_BRAVE_API_KEY_HERE':
+                        self.api_key = key_from_config
+            except Exception as e:
+                print(f"[Search] ⚠️ Could not load API key from config: {e}")
+        
+        if not self.api_key:
+            print(f"[Search] ⚠️ No API key configured. Set BRAVE_API_KEY environment variable.")
         
         self.model = "phi4:latest"  # Fast model for search
         
