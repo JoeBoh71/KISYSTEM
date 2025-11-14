@@ -1,0 +1,220 @@
+{
+  "version": "1.0",
+  "date": "2025-11-12",
+  "description": "Common CUDA compilation errors and automatic fixes",
+  "patterns": [
+    {
+      "id": "cuda_comment_hash",
+      "name": "Hash Comment in CUDA",
+      "error_regex": "error:.*invalid preprocessing directive #(?!include|define|ifdef|ifndef|endif|pragma)",
+      "nvcc_error_patterns": [
+        "invalid preprocessing directive",
+        "error: invalid token at start of a preprocessor expression"
+      ],
+      "fix_type": "regex_replace",
+      "search_pattern": "^(\\s*)#\\s+([^i].*?)$",
+      "replace_pattern": "\\1// \\2",
+      "description": "CUDA uses // for comments, not #. Only #include, #define, #ifdef, #ifndef, #endif, #pragma are valid.",
+      "examples": {
+        "wrong": "# This is a comment",
+        "correct": "// This is a comment"
+      },
+      "priority": 1,
+      "discovered": "RUN 37.2"
+    },
+    {
+      "id": "cuda_declspec_global",
+      "name": "__declspec(__global__) Syntax",
+      "error_regex": "error:.*cannot overload functions.*__declspec\\(__global__\\)",
+      "nvcc_error_patterns": [
+        "cannot overload functions distinguished by return type alone",
+        "__declspec(__global__)"
+      ],
+      "fix_type": "regex_replace",
+      "search_pattern": "__declspec\\s*\\(\\s*__global__\\s*\\)",
+      "replace_pattern": "__global__",
+      "description": "CUDA uses __global__ attribute, not Windows __declspec syntax",
+      "examples": {
+        "wrong": "__declspec(__global__) void kernel()",
+        "correct": "__global__ void kernel()"
+      },
+      "priority": 1,
+      "discovered": "RUN 37.5",
+      "notes": "Regex allows whitespace: __declspec( __global__ )"
+    },
+    {
+      "id": "cuda_vla_error",
+      "name": "Variable Length Array (VLA)",
+      "error_regex": "error:.*expression must have a constant value",
+      "nvcc_error_patterns": [
+        "expression must have a constant value",
+        "variable length array"
+      ],
+      "fix_type": "vla_to_malloc",
+      "description": "CUDA/NVCC does not support C99 VLA. Use dynamic allocation (malloc/cudaMalloc) or const size.",
+      "examples": {
+        "wrong": "float* d_a[poolSize]; // poolSize is variable",
+        "correct": "float** d_a = (float**)malloc(poolSize * sizeof(float*));"
+      },
+      "priority": 2,
+      "discovered": "RUN 37.5",
+      "notes": "Requires code analysis to detect VLA pattern and convert to malloc/free"
+    },
+    {
+      "id": "cuda_python_import",
+      "name": "Python Import in CUDA",
+      "error_regex": "error:.*identifier \"import\" is undefined",
+      "nvcc_error_patterns": [
+        "identifier \"import\" is undefined",
+        "expected a declaration"
+      ],
+      "fix_type": "remove_lines",
+      "search_pattern": "^\\s*import\\s+.*$",
+      "replace_pattern": "",
+      "description": "CUDA C++ does not use Python imports. Remove all import statements.",
+      "examples": {
+        "wrong": "import numpy as np",
+        "correct": "// Remove Python imports"
+      },
+      "priority": 1,
+      "discovered": "RUN 37.3"
+    },
+    {
+      "id": "cuda_numba_decorator",
+      "name": "Numba @cuda.jit Decorator",
+      "error_regex": "error:.*expected a declaration",
+      "nvcc_error_patterns": [
+        "@cuda.jit",
+        "expected a declaration"
+      ],
+      "fix_type": "remove_lines",
+      "search_pattern": "^\\s*@cuda\\.jit.*$",
+      "replace_pattern": "",
+      "description": "CUDA C++ does not use Python Numba decorators. Use __global__ instead.",
+      "examples": {
+        "wrong": "@cuda.jit\ndef kernel():",
+        "correct": "__global__ void kernel()"
+      },
+      "priority": 1,
+      "discovered": "RUN 37.3"
+    },
+    {
+      "id": "cuda_missing_cufft",
+      "name": "Missing cuFFT Header",
+      "error_regex": "error:.*identifier \"cufftHandle\" is undefined",
+      "nvcc_error_patterns": [
+        "identifier \"cufftHandle\" is undefined",
+        "identifier \"cufftPlan\" is undefined",
+        "identifier \"cufftExec\" is undefined"
+      ],
+      "fix_type": "add_include",
+      "include": "#include <cufft.h>",
+      "description": "cuFFT types require #include <cufft.h>",
+      "priority": 1,
+      "discovered": "RUN 37.5",
+      "notes": "Should be caught by cuda_profiler_agent.py ensure_required_includes()"
+    },
+    {
+      "id": "cuda_missing_cublas",
+      "name": "Missing cuBLAS Header",
+      "error_regex": "error:.*identifier \"cublasHandle\" is undefined",
+      "nvcc_error_patterns": [
+        "identifier \"cublasHandle\" is undefined",
+        "identifier \"cublasSgemm\" is undefined"
+      ],
+      "fix_type": "add_include",
+      "include": "#include <cublas_v2.h>",
+      "description": "cuBLAS types require #include <cublas_v2.h>",
+      "priority": 1,
+      "discovered": "RUN 37.5"
+    },
+    {
+      "id": "cuda_missing_curand",
+      "name": "Missing cuRAND Header",
+      "error_regex": "error:.*identifier \"curandGenerator\" is undefined",
+      "nvcc_error_patterns": [
+        "identifier \"curandGenerator\" is undefined",
+        "identifier \"curandGenerate\" is undefined"
+      ],
+      "fix_type": "add_include",
+      "include": "#include <curand.h>",
+      "description": "cuRAND types require #include <curand.h>",
+      "priority": 1,
+      "discovered": "RUN 37.5"
+    },
+    {
+      "id": "cuda_missing_math_defines",
+      "name": "Missing M_PI / M_E Constants",
+      "error_regex": "error:.*identifier \"M_PI\" is undefined",
+      "nvcc_error_patterns": [
+        "identifier \"M_PI\" is undefined",
+        "identifier \"M_E\" is undefined"
+      ],
+      "fix_type": "add_defines",
+      "defines": [
+        "#define _USE_MATH_DEFINES",
+        "#ifndef M_PI",
+        "#define M_PI 3.14159265358979323846",
+        "#endif",
+        "#ifndef M_E",
+        "#define M_E 2.71828182845904523536",
+        "#endif"
+      ],
+      "description": "M_PI and M_E are not standard in CUDA. Define them explicitly.",
+      "priority": 1,
+      "discovered": "RUN 37.4",
+      "notes": "Should be caught by cuda_profiler_agent.py auto-injection"
+    },
+    {
+      "id": "cuda_kernel_launch_missing",
+      "name": "Missing Kernel Launch Configuration",
+      "error_regex": "error:.*__global__.*function call must be configured",
+      "nvcc_error_patterns": [
+        "a __global__ function call must be configured",
+        "__global__ function call must be configured"
+      ],
+      "fix_type": "llm_guided",
+      "description": "CUDA kernels must be called with <<<blocks, threads>>> syntax",
+      "examples": {
+        "wrong": "myKernel(args);",
+        "correct": "myKernel<<<blocks, threads>>>(args);"
+      },
+      "prompt_guidance": "Add <<<gridDim, blockDim>>> launch configuration to kernel call. Example: kernel<<<(n+255)/256, 256>>>(args);",
+      "priority": 1,
+      "discovered": "RUN 37.5.1",
+      "notes": "LLM guidance needed - requires code analysis to identify correct kernel call"
+    },
+    {
+      "id": "cufft_type_mismatch",
+      "name": "cuFFT Type Mismatch",
+      "error_regex": "error:.*argument of type \"float \\*\" is incompatible with parameter of type \"cufft(Real|Complex) \\*\"",
+      "nvcc_error_patterns": [
+        "argument of type \"float *\" is incompatible with parameter of type \"cufftComplex *\"",
+        "argument of type \"float *\" is incompatible with parameter of type \"cufftReal *\"",
+        "incompatible with parameter of type \"cufftComplex *\"",
+        "incompatible with parameter of type \"cufftReal *\""
+      ],
+      "fix_type": "llm_guided",
+      "description": "cuFFT functions require specific types: cufftReal* for real data, cufftComplex* for complex data",
+      "examples": {
+        "wrong": "float* data; cufftExecR2C(plan, data, output);",
+        "correct": "cufftReal* data = (cufftReal*)ptr; cufftExecR2C(plan, data, output);"
+      },
+      "prompt_guidance": "Cast float* to cufftReal* or cufftComplex* as needed. cufftReal = float, cufftComplex = struct{float x,y;}. Use proper types in function signatures and allocations.",
+      "priority": 1,
+      "discovered": "RUN 37.5.2",
+      "notes": "Common in cuFFT usage - requires understanding of cuFFT type system"
+    }
+  ],
+  "usage": {
+    "fixer_agent": "Load patterns on init, apply regex fixes before LLM generation",
+    "priority": "Lower number = higher priority. Apply in order.",
+    "flow": "1. Check error against patterns, 2. Apply auto-fix if match, 3. LLM only if no match"
+  },
+  "statistics": {
+    "total_patterns": 11,
+    "auto_fixable": 7,
+    "requires_analysis": 1,
+    "llm_guided": 3
+  }
+}
